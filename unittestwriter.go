@@ -266,7 +266,7 @@ func main() {
 					if 	tableX[i].Table_Columns[j].ForeignFlag {
 						for k := 0; k < len(tableX[i].ForeignKeys); k++ {
 							if 	tableX[i].ForeignKeys[k].FK_Column == tableX[i].Table_Columns[j].Column_name {
-								_, _ = outputFile.WriteString("		"+tableX[i].Table_Columns[j].ColumnNameParams+":    "+ tableX[i].ForeignKeys[k].FK_Related_SingularTableName+"."+strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+ "\n"))
+								_, _ = outputFile.WriteString("		"+tableX[i].Table_Columns[j].ColumnNameParams+":    	"+ tableX[i].ForeignKeys[k].FK_Related_SingularTableName+"."+strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+ "\n"))
 							}
 						}
 					} else {
