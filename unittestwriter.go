@@ -302,7 +302,7 @@ func main() {
 				printTestFuncForUpdate(tableX[:], i, outputFile)
 				printTestFuncForDelete(tableX[:], i, outputFile)
 				outputFile.Close()
-			  }
+			}
 		}
 	}
 }
