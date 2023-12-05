@@ -280,7 +280,7 @@ func main() {
 							_, _ = outputFile.WriteString("		"+tableX[i].Table_Columns[j].ColumnNameParams+":    util.RandomReal(1, 100)," + "\n")
 						}
 						if tableX[i].Table_Columns[j].ColumnType == "timestamptz" {
-							_, _ = outputFile.WriteString("		"+tableX[i].Table_Columns[j].ColumnNameParams+":    time.Now(),"+ "\n")
+							_, _ = outputFile.WriteString("		"+tableX[i].Table_Columns[j].ColumnNameParams+":    time.Now().UTC(),"+ "\n")
 						}	
 					}		
 				}
