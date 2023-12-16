@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
+	"bytes"
+
 
 	"github.com/naviscom/dbSchemaReader"
 )
@@ -31,22 +34,28 @@ func main_testFunc(dirPath string) {
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
 
-	_, _ = outputFile.WriteString("var testQueries *Queries" + "\n")
-	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString("const (" + "\n")
 	_, _ = outputFile.WriteString(` dbDriver = "postgres"` + "\n")
 	_, _ = outputFile.WriteString(` dbSource = "postgresql://root:secret@localhost:5432/catalyst?sslmode=disable"` + "\n")
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
 
+	_, _ = outputFile.WriteString("var testQueries *Queries" + "\n")
+	_, _ = outputFile.WriteString("var testDB *sql.DB" + "\n")
+	_, _ = outputFile.WriteString("\n")
+
+
 	_, _ = outputFile.WriteString("func TestMain(m *testing.M ) {" + "\n")
-	_, _ = outputFile.WriteString("	conn, err := sql.Open(dbDriver, dbSource)" + "\n")
+	_, _ = outputFile.WriteString("	var err error" + "\n")
+	_, _ = outputFile.WriteString("\n")
+
+	_, _ = outputFile.WriteString("	testDB, err = sql.Open(dbDriver, dbSource)" + "\n")
 	_, _ = outputFile.WriteString("	if err != nil {" + "\n")
 	_, _ = outputFile.WriteString(`		log.Fatal("cannot connect to db:", err)` + "\n")
 	_, _ = outputFile.WriteString("	}" + "\n")
 	_, _ = outputFile.WriteString("\n")
 
-	_, _ = outputFile.WriteString("	testQueries = New(conn)" + "\n")
+	_, _ = outputFile.WriteString("	testQueries = New(testDB)" + "\n")
 	_, _ = outputFile.WriteString("	os.Exit(m.Run())" + "\n")
 	_, _ = outputFile.WriteString("}" + "\n")
 	outputFile.Close()
@@ -90,7 +99,11 @@ func CreateRandomFunction(tableX []dbSchemaReader.Table_Struct, i int, outputFil
 	_, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
 	_, _ = outputFile.WriteString("	require.NotEmpty(t, " + tableX[i].OutputFileName + ")" + "\n")
 	for j := 1; j < len(tableX[i].Table_Columns); j++ {
-		_, _ = outputFile.WriteString("	require.Equal(t, arg." + tableX[i].Table_Columns[j].ColumnNameParams + ", " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams + ")" + "\n")
+		if tableX[i].Table_Columns[j].ColumnType == "timestamptz" {
+			_, _ = outputFile.WriteString("	require.WithinDuration(t, arg." + tableX[i].Table_Columns[j].ColumnNameParams + ", " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams +", time.Second" +")" + "\n")
+		}else{
+			_, _ = outputFile.WriteString("	require.Equal(t, arg." + tableX[i].Table_Columns[j].ColumnNameParams + ", " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams + ")" + "\n")
+		}
 	}
 	_, _ = outputFile.WriteString("	return " + tableX[i].OutputFileName + "\n")
 	_, _ = outputFile.WriteString("}" + "\n")
@@ -535,4 +548,91 @@ func main() {
 	cmd.Dir = dirPath+"/db/sqlc"
 	cmd.Run()
 	println("goimports executed successfully")
+	var stderr bytes.Buffer
+
+	//Executing go mod tidy
+	cmd = exec.Command("go", "mod", "tidy")
+	cmd.Dir = dirPath
+	cmd.Run()
+	println("go mod tidy executed successfully")
+
+	//Executing go mod tidy
+	cmd = exec.Command("make", "test")
+	cmd.Dir = dirPath
+	cmd.Run()
+	println("all tests have been performed")
+
+	//git init
+	cmd = exec.Command("git", "init")
+	cmd.Dir = dirPath
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		// return
+	} else {
+		println("git init done successfully")
+		time.Sleep(5 * time.Second)
+	}
+
+	//git add .
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = dirPath
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		// return
+	} else {
+		println("git add . done successfully")
+		time.Sleep(5 * time.Second)
+	}
+
+	//git commit
+	cmd = exec.Command("git", "commit", "-m", `"commit from apiwriter"`)
+	cmd.Dir = dirPath
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		// return
+	} else {
+		println("git commit done successfully")
+		time.Sleep(5 * time.Second)
+	}
+
+	//git commit
+	cmd = exec.Command("git", "remote", "remove", "origin")
+	cmd.Dir = dirPath
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		// return
+	} else {
+		println("git remote remove origin done successfully")
+		time.Sleep(5 * time.Second)
+	}
+
+		//git commit
+		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
+		cmd.Dir = dirPath
+		err = cmd.Run()
+		if err != nil {
+			fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+			// return
+		} else {
+			println("git remote add origin done successfully")
+			time.Sleep(5 * time.Second)
+		}
+	
+
+	//git push
+	cmd = exec.Command("git", "push", "origin", "main")
+	cmd.Dir = dirPath
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		// return
+	} else {
+		println("git push done successfully")
+		time.Sleep(5 * time.Second)
+	}
+
 }
