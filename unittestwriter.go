@@ -556,11 +556,11 @@ func main() {
 	cmd.Run()
 	println("go mod tidy executed successfully")
 
-	//Executing go mod tidy
-	cmd = exec.Command("make", "test")
-	cmd.Dir = dirPath
-	cmd.Run()
-	println("all tests have been performed")
+	// //Executing go mod tidy
+	// cmd = exec.Command("make", "test")
+	// cmd.Dir = dirPath
+	// cmd.Run()
+	// println("all tests have been performed")
 
 	//git init
 	cmd = exec.Command("git", "init")
@@ -571,7 +571,7 @@ func main() {
 		// return
 	} else {
 		println("git init done successfully")
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	//git add .
@@ -583,7 +583,7 @@ func main() {
 		// return
 	} else {
 		println("git add . done successfully")
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	//git commit
@@ -595,7 +595,7 @@ func main() {
 		// return
 	} else {
 		println("git commit done successfully")
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	//git commit
@@ -607,11 +607,11 @@ func main() {
 		// return
 	} else {
 		println("git remote remove origin done successfully")
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 		//git commit
-		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
+		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
 		cmd.Dir = dirPath
 		err = cmd.Run()
 		if err != nil {
@@ -619,7 +619,7 @@ func main() {
 			// return
 		} else {
 			println("git remote add origin done successfully")
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	
 
@@ -632,7 +632,7 @@ func main() {
 		// return
 	} else {
 		println("git push done successfully")
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 }
