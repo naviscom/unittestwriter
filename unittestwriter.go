@@ -107,7 +107,7 @@ func CreateRandomFunction(tableX []dbSchemaReader.Table_Struct, i int, outputFil
 	}
 	_, _ = outputFile.WriteString("	return " + tableX[i].OutputFileName + "\n")
 	_, _ = outputFile.WriteString("}" + "\n")
-	fmt.Println("	", funcSig+" has been generated successfully")
+	// fmt.Println("	", funcSig+" has been generated successfully")
 	_, _ = outputFile.WriteString("\n")
 }
 
@@ -143,7 +143,7 @@ func printTestFuncForCreate(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("}" + "\n")
 	_, _ = outputFile.WriteString("\n")
-	fmt.Println("	", "func TestCreate"+tableX[i].FunctionSignature+"(t *testing.T) has been generated successfully")
+	// fmt.Println("	", "func TestCreate"+tableX[i].FunctionSignature+"(t *testing.T) has been generated successfully")
 }
 
 func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
@@ -227,8 +227,6 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 
 func printTestFuncForReadList(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
 	_, _ = outputFile.WriteString("func TestList" + tableX[i].FunctionSignature2 + "(t *testing.T) {" + "\n")
-
-
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
@@ -409,8 +407,7 @@ func printTestFuncForUpdate(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 				_, _ = outputFile.WriteString("	require.WithinDuration(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ", time.Second)" + "\n")
 			} else {
 				_, _ = outputFile.WriteString("	require.Equal(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
-			}
-	
+			}	
 		}
 	}
 	_, _ = outputFile.WriteString("\n")
@@ -611,7 +608,7 @@ func main() {
 	}
 
 		//git commit
-		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
+		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
 		cmd.Dir = dirPath
 		err = cmd.Run()
 		if err != nil {
