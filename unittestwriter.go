@@ -147,9 +147,10 @@ func printTestFuncForCreate(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 }
 
 func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
+	var s int = 0
 	for j := 0; j < len(tableX[i].Table_Columns); j++ {
 		if tableX[i].Table_Columns[j].PrimaryFlag || tableX[i].Table_Columns[j].UniqueFlag {
-			_, _ = outputFile.WriteString("func TestGet" + tableX[i].FunctionSignature + strconv.Itoa(j) + "(t *testing.T) {" + "\n")
+			_, _ = outputFile.WriteString("func TestGet" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(t *testing.T) {" + "\n")
 			for k := 0; k < len(fk_HierarchyX); k++ {
 				if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 					for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
@@ -207,7 +208,7 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 					}
 				}
 			}
-			_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testQueries.Get" + tableX[i].FunctionSignature + strconv.Itoa(j) + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
+			_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testQueries.Get" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NotEmpty(t, " + tableX[i].OutputFileName + "2)" + "\n")
 			_, _ = outputFile.WriteString("\n")
@@ -221,6 +222,7 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 			}
 			_, _ = outputFile.WriteString("}" + "\n")
 			_, _ = outputFile.WriteString("\n")
+			s++
 		}
 	}
 }
@@ -608,7 +610,7 @@ func main() {
 	}
 
 		//git commit
-		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
+		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
 		cmd.Dir = dirPath
 		err = cmd.Run()
 		if err != nil {
