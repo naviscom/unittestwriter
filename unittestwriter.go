@@ -610,7 +610,7 @@ func main() {
 	}
 
 		//git commit
-		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
+		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
 		cmd.Dir = dirPath
 		err = cmd.Run()
 		if err != nil {
