@@ -30,32 +30,36 @@ func main_testFunc(dirPath string) {
 	_, _ = outputFile.WriteString(` "os"` + "\n")
 	_, _ = outputFile.WriteString(` "testing"` + "\n")
 	_, _ = outputFile.WriteString("\n")
-	_, _ = outputFile.WriteString(` _ "github.com/lib/pq"` + "\n")
+	_, _ = outputFile.WriteString(` //_ "github.com/lib/pq"` + "\n")
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
 
-	_, _ = outputFile.WriteString("const (" + "\n")
-	_, _ = outputFile.WriteString(` dbDriver = "postgres"` + "\n")
-	_, _ = outputFile.WriteString(` dbSource = "postgresql://root:secret@localhost:5432/catalyst?sslmode=disable"` + "\n")
-	_, _ = outputFile.WriteString(")" + "\n")
+	_, _ = outputFile.WriteString("//const (" + "\n")
+	_, _ = outputFile.WriteString(` //dbDriver = "postgres"` + "\n")
+	_, _ = outputFile.WriteString(` //dbSource = "postgresql://root:secret@localhost:5432/catalyst?sslmode=disable"` + "\n")
+	_, _ = outputFile.WriteString("//)" + "\n")
 	_, _ = outputFile.WriteString("\n")
 
-	_, _ = outputFile.WriteString("var testQueries *Queries" + "\n")
-	_, _ = outputFile.WriteString("var testDB *sql.DB" + "\n")
+	_, _ = outputFile.WriteString("//var testQueries *Queries" + "\n")
+	_, _ = outputFile.WriteString("//var testDB *sql.DB" + "\n")
+	_, _ = outputFile.WriteString("var testStore *Store" + "\n")
 	_, _ = outputFile.WriteString("\n")
-
 
 	_, _ = outputFile.WriteString("func TestMain(m *testing.M ) {" + "\n")
-	_, _ = outputFile.WriteString("	var err error" + "\n")
+	_, _ = outputFile.WriteString("	//var err error" + "\n")
+	_, _ = outputFile.WriteString(`	config, err := util.LoadConfig("../..")`+ "\n")
+	_, _ = outputFile.WriteString(`	if err != nil {` + "\n")
+	_, _ = outputFile.WriteString(`		log.Fatal("cannot load config:", err)` + "\n")
+	_, _ = outputFile.WriteString(`	}` + "\n")
 	_, _ = outputFile.WriteString("\n")
 
-	_, _ = outputFile.WriteString("	testDB, err = sql.Open(dbDriver, dbSource)" + "\n")
+	_, _ = outputFile.WriteString(`connPool, err := pgxpool.New(context.Background(), config.DBSource)` + "\n")
 	_, _ = outputFile.WriteString("	if err != nil {" + "\n")
 	_, _ = outputFile.WriteString(`		log.Fatal("cannot connect to db:", err)` + "\n")
 	_, _ = outputFile.WriteString("	}" + "\n")
 	_, _ = outputFile.WriteString("\n")
 
-	_, _ = outputFile.WriteString("	testQueries = New(testDB)" + "\n")
+	_, _ = outputFile.WriteString(`	testStore = NewStore(connPool)` + "\n")
 	_, _ = outputFile.WriteString("	os.Exit(m.Run())" + "\n")
 	_, _ = outputFile.WriteString("}" + "\n")
 	outputFile.Close()
@@ -95,8 +99,9 @@ func CreateRandomFunction(tableX []dbSchemaReader.Table_Struct, i int, outputFil
 		}
 	}
 	_, _ = outputFile.WriteString("	}" + "\n")
-	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + ", err := testQueries.Create" + tableX[i].FunctionSignature + "(context.Background(), arg)" + "\n")
-	_, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
+//	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + ", err := testQueries.Create" + tableX[i].FunctionSignature + "(context.Background(), arg)" + "\n")
+	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + ", err := testStore.Create" + tableX[i].FunctionSignature + "(context.Background(), arg)" + "\n")
+_, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
 	_, _ = outputFile.WriteString("	require.NotEmpty(t, " + tableX[i].OutputFileName + ")" + "\n")
 	for j := 1; j < len(tableX[i].Table_Columns); j++ {
 		if tableX[i].Table_Columns[j].ColumnType == "timestamptz" {
@@ -208,7 +213,7 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 					}
 				}
 			}
-			_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testQueries.Get" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
+			_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testStore.Get" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NotEmpty(t, " + tableX[i].OutputFileName + "2)" + "\n")
 			_, _ = outputFile.WriteString("\n")
@@ -275,7 +280,7 @@ func printTestFuncForReadList(tableX []dbSchemaReader.Table_Struct, i int, fk_Hi
 	_, _ = outputFile.WriteString("		Offset:        5,"+"\n")
 	_, _ = outputFile.WriteString("	}" + "\n")
 
-	_, _ = outputFile.WriteString("	" + tableX[i].Table_name + ", err := testQueries.List" + tableX[i].FunctionSignature2 + "(context.Background(), " + "arg" + ")" + "\n")
+	_, _ = outputFile.WriteString("	" + tableX[i].Table_name + ", err := testStore.List" + tableX[i].FunctionSignature2 + "(context.Background(), " + "arg" + ")" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.Len(t, " + tableX[i].Table_name + ", 5)" + "\n")
 	_, _ = outputFile.WriteString("\n")
@@ -397,7 +402,7 @@ func printTestFuncForUpdate(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 	}
 	_, _ = outputFile.WriteString("	}" + "\n")
 
-	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testQueries.Update" + tableX[i].FunctionSignature + "(context.Background(), " + "arg" + ")" + "\n")
+	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testStore.Update" + tableX[i].FunctionSignature + "(context.Background(), " + "arg" + ")" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.NotEmpty(t, " + tableX[i].OutputFileName + "2)" + "\n")
 	_, _ = outputFile.WriteString("\n")
@@ -462,11 +467,11 @@ func printTestFuncForDelete(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 			}
 		}
 	}
-	_, _ = outputFile.WriteString("	" + "err := testQueries.Delete" + tableX[i].FunctionSignature + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
+	_, _ = outputFile.WriteString("	" + "err := testStore.Delete" + tableX[i].FunctionSignature + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
-	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testQueries.Get" + tableX[i].FunctionSignature + "0" + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
+	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testStore.Get" + tableX[i].FunctionSignature + "0" + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.Error(t, err)" + "\n")
-	_, _ = outputFile.WriteString("	" + "require.EqualError(t, err, sql.ErrNoRows.Error())" + "\n")
+	_, _ = outputFile.WriteString("	" + "require.EqualError(t, err, ErrRecordNotFound.Error())" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.Empty(t, "+ tableX[i].OutputFileName +"2)"+ "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString("}" + "\n")
@@ -542,6 +547,47 @@ func main() {
 			}
 		}
 	}
+
+	//writing error.go
+	outputFileName := dirPath + "/db/sqlc/error.go"
+	outputFile, errs := os.Create(outputFileName)
+	if errs != nil {
+		fmt.Println("Failed to create file:", errs)
+		return
+	}
+	defer outputFile.Close()
+	_, _ = outputFile.WriteString("package db" + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString("import (" + "\n")
+	_, _ = outputFile.WriteString(`	//"database/sql"` + "\n")
+	_, _ = outputFile.WriteString(`	"github.com/jackc/pgx/v5"` + "\n")
+	_, _ = outputFile.WriteString(`	//"github.com/jackc/pgx/v5/pgconn"` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+
+	_, _ = outputFile.WriteString(`//const (` + "\n")
+	_, _ = outputFile.WriteString(`	//ForeignKeyViolation = "23503"` + "\n")
+	_, _ = outputFile.WriteString(`	//UniqueViolation     = "23505"` + "\n")
+	_, _ = outputFile.WriteString(`//)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+
+	_, _ = outputFile.WriteString(`var ErrRecordNotFound = pgx.ErrNoRows` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`//var ErrUniqueViolation = &pgconn.PgError{` + "\n")
+	_, _ = outputFile.WriteString(`	//Code: UniqueViolation,` + "\n")
+	_, _ = outputFile.WriteString(`//}` + "\n")
+	_, _ = outputFile.WriteString(`//func ErrorCode(err error) string {` + "\n")
+	_, _ = outputFile.WriteString(`	//var pgErr *pgconn.PgError` + "\n")
+	_, _ = outputFile.WriteString(`	//if errors.As(err, &pgErr) {`+"\n")
+	_, _ = outputFile.WriteString(`		//return pgErr.Code` + "\n")
+	_, _ = outputFile.WriteString(`	//}` + "\n")
+	_, _ = outputFile.WriteString(`	//return ""` + "\n")
+	_, _ = outputFile.WriteString(`//}` + "\n")
+
+
+
+
 	//Executing goimports
 	cmd := exec.Command("goimports", "-w", ".")
 	cmd.Dir = dirPath+"/db/sqlc"
