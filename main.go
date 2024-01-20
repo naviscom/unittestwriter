@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-	"bytes"
+	// "time"
+	// "bytes"
 
 
 	"github.com/naviscom/dbSchemaReader"
@@ -148,7 +148,6 @@ func printTestFuncForCreate(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("}" + "\n")
 	_, _ = outputFile.WriteString("\n")
-	// fmt.Println("	", "func TestCreate"+tableX[i].FunctionSignature+"(t *testing.T) has been generated successfully")
 }
 
 func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
@@ -593,7 +592,7 @@ func main() {
 	cmd.Dir = dirPath+"/db/sqlc"
 	cmd.Run()
 	println("goimports executed successfully")
-	var stderr bytes.Buffer
+	// var stderr bytes.Buffer
 
 	//Executing go mod tidy
 	cmd = exec.Command("go", "mod", "tidy")
@@ -607,77 +606,77 @@ func main() {
 	// cmd.Run()
 	// println("all tests have been performed")
 
-	//git init
-	cmd = exec.Command("git", "init")
-	cmd.Dir = dirPath
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		// return
-	} else {
-		println("git init done successfully")
-		time.Sleep(1 * time.Second)
-	}
+	// //git init
+	// cmd = exec.Command("git", "init")
+	// cmd.Dir = dirPath
+	// err = cmd.Run()
+	// if err != nil {
+	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	// 	// return
+	// } else {
+	// 	println("git init done successfully")
+	// 	time.Sleep(1 * time.Second)
+	// }
 
-	//git add .
-	cmd = exec.Command("git", "add", ".")
-	cmd.Dir = dirPath
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		// return
-	} else {
-		println("git add . done successfully")
-		time.Sleep(1 * time.Second)
-	}
+	// //git add .
+	// cmd = exec.Command("git", "add", ".")
+	// cmd.Dir = dirPath
+	// err = cmd.Run()
+	// if err != nil {
+	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	// 	// return
+	// } else {
+	// 	println("git add . done successfully")
+	// 	time.Sleep(1 * time.Second)
+	// }
 
-	//git commit
-	cmd = exec.Command("git", "commit", "-m", `"commit from apiwriter"`)
-	cmd.Dir = dirPath
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		// return
-	} else {
-		println("git commit done successfully")
-		time.Sleep(1 * time.Second)
-	}
+	// //git commit
+	// cmd = exec.Command("git", "commit", "-m", `"commit from apiwriter"`)
+	// cmd.Dir = dirPath
+	// err = cmd.Run()
+	// if err != nil {
+	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	// 	// return
+	// } else {
+	// 	println("git commit done successfully")
+	// 	time.Sleep(1 * time.Second)
+	// }
 
-	//git commit
-	cmd = exec.Command("git", "remote", "remove", "origin")
-	cmd.Dir = dirPath
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		// return
-	} else {
-		println("git remote remove origin done successfully")
-		time.Sleep(1 * time.Second)
-	}
+	// //git commit
+	// cmd = exec.Command("git", "remote", "remove", "origin")
+	// cmd.Dir = dirPath
+	// err = cmd.Run()
+	// if err != nil {
+	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	// 	// return
+	// } else {
+	// 	println("git remote remove origin done successfully")
+	// 	time.Sleep(1 * time.Second)
+	// }
 
-		//git commit
-		cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/test_catalyst.git")
-		cmd.Dir = dirPath
-		err = cmd.Run()
-		if err != nil {
-			fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-			// return
-		} else {
-			println("git remote add origin done successfully")
-			time.Sleep(1 * time.Second)
-		}
+	// 	//git commit
+	// 	cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/"+projectFolderName+".git")
+	// 	cmd.Dir = dirPath
+	// 	err = cmd.Run()
+	// 	if err != nil {
+	// 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	// 		// return
+	// 	} else {
+	// 		println("git remote add origin done successfully")
+	// 		time.Sleep(1 * time.Second)
+	// 	}
 	
 
-	//git push
-	cmd = exec.Command("git", "push", "origin", "main")
-	cmd.Dir = dirPath
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		// return
-	} else {
-		println("git push done successfully")
-		time.Sleep(1 * time.Second)
-	}
+	// //git push
+	// cmd = exec.Command("git", "push", "origin", "main")
+	// cmd.Dir = dirPath
+	// err = cmd.Run()
+	// if err != nil {
+	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	// 	// return
+	// } else {
+	// 	println("git push done successfully")
+	// 	time.Sleep(1 * time.Second)
+	// }
 
 }
