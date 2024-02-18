@@ -1,4 +1,4 @@
-package main
+package unittestwriter
 
 import (
 	"fmt"
@@ -477,9 +477,9 @@ func printTestFuncForDelete(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString("\n")
 }
 
-func main() {
+func TestWriter(projectFolderPath string) {
 	//generating main_test.go
-	dirPath := os.Args[1]
+	dirPath := projectFolderPath
 	var files []string
 	var x int
 	var projectFolderName string //, projectFolderPath string
