@@ -154,6 +154,7 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 	var s int = 0
 	for j := 0; j < len(tableX[i].Table_Columns); j++ {
 		if tableX[i].Table_Columns[j].PrimaryFlag || tableX[i].Table_Columns[j].UniqueFlag {
+			var getByColumnName string = tableX[i].Table_Columns[j].ColumnNameParams
 			_, _ = outputFile.WriteString("func TestGet" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(t *testing.T) {" + "\n")
 			for k := 0; k < len(fk_HierarchyX); k++ {
 				if fk_HierarchyX[k].TableName == tableX[i].Table_name {
@@ -187,31 +188,30 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 					}
 				}
 			}
-			var getByColumnName string
-			if j == 0 {
-				for g := 0; g < len(tableX); g++ {
-					if tableX[g].Table_name == tableX[i].Table_name {
-						for h := 0; h < len(tableX[g].Table_Columns); h++ {
-							if tableX[g].Table_Columns[h].PrimaryFlag {
-								getByColumnName = tableX[g].Table_Columns[h].ColumnNameParams
-								break
-							}
-						}
-					}
-				}
-			}
-			if j == 1 {
-				for g := 0; g < len(tableX); g++ {
-					if tableX[g].Table_name == tableX[i].Table_name {
-						for h := 0; h < len(tableX[g].Table_Columns); h++ {
-							if tableX[g].Table_Columns[h].UniqueFlag {
-								getByColumnName = tableX[g].Table_Columns[h].ColumnNameParams
-								break
-							}
-						}
-					}
-				}
-			}
+			// if j == 0 {
+			// 	for g := 0; g < len(tableX); g++ {
+			// 		if tableX[g].Table_name == tableX[i].Table_name {
+			// 			for h := 0; h < len(tableX[g].Table_Columns); h++ {
+			// 				if tableX[g].Table_Columns[h].PrimaryFlag {
+			// 					getByColumnName = tableX[g].Table_Columns[h].ColumnNameParams
+			// 					break
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+			// if j == 1 {
+			// 	for g := 0; g < len(tableX); g++ {
+			// 		if tableX[g].Table_name == tableX[i].Table_name {
+			// 			for h := 0; h < len(tableX[g].Table_Columns); h++ {
+			// 				if tableX[g].Table_Columns[h].UniqueFlag {
+			// 					getByColumnName = tableX[g].Table_Columns[h].ColumnNameParams
+			// 					break
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
 			_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testStore.Get" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NotEmpty(t, " + tableX[i].OutputFileName + "2)" + "\n")
@@ -226,8 +226,8 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 			}
 			_, _ = outputFile.WriteString("}" + "\n")
 			_, _ = outputFile.WriteString("\n")
-			s++
 		}
+		s++
 	}
 }
 
@@ -584,9 +584,6 @@ func main() {
 	_, _ = outputFile.WriteString(`	//return ""` + "\n")
 	_, _ = outputFile.WriteString(`//}` + "\n")
 
-
-
-
 	//Executing goimports
 	cmd := exec.Command("goimports", "-w", ".")
 	cmd.Dir = dirPath+"/db/sqlc"
@@ -599,84 +596,5 @@ func main() {
 	cmd.Dir = dirPath
 	cmd.Run()
 	println("go mod tidy executed successfully")
-
-	// //Executing go mod tidy
-	// cmd = exec.Command("make", "test")
-	// cmd.Dir = dirPath
-	// cmd.Run()
-	// println("all tests have been performed")
-
-	// //git init
-	// cmd = exec.Command("git", "init")
-	// cmd.Dir = dirPath
-	// err = cmd.Run()
-	// if err != nil {
-	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-	// 	// return
-	// } else {
-	// 	println("git init done successfully")
-	// 	time.Sleep(1 * time.Second)
-	// }
-
-	// //git add .
-	// cmd = exec.Command("git", "add", ".")
-	// cmd.Dir = dirPath
-	// err = cmd.Run()
-	// if err != nil {
-	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-	// 	// return
-	// } else {
-	// 	println("git add . done successfully")
-	// 	time.Sleep(1 * time.Second)
-	// }
-
-	// //git commit
-	// cmd = exec.Command("git", "commit", "-m", `"commit from apiwriter"`)
-	// cmd.Dir = dirPath
-	// err = cmd.Run()
-	// if err != nil {
-	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-	// 	// return
-	// } else {
-	// 	println("git commit done successfully")
-	// 	time.Sleep(1 * time.Second)
-	// }
-
-	// //git commit
-	// cmd = exec.Command("git", "remote", "remove", "origin")
-	// cmd.Dir = dirPath
-	// err = cmd.Run()
-	// if err != nil {
-	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-	// 	// return
-	// } else {
-	// 	println("git remote remove origin done successfully")
-	// 	time.Sleep(1 * time.Second)
-	// }
-
-	// 	//git commit
-	// 	cmd = exec.Command("git", "remote", "add", "origin", "https://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@github.com/naviscom/"+projectFolderName+".git")
-	// 	cmd.Dir = dirPath
-	// 	err = cmd.Run()
-	// 	if err != nil {
-	// 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-	// 		// return
-	// 	} else {
-	// 		println("git remote add origin done successfully")
-	// 		time.Sleep(1 * time.Second)
-	// 	}
-	
-
-	// //git push
-	// cmd = exec.Command("git", "push", "origin", "main")
-	// cmd.Dir = dirPath
-	// err = cmd.Run()
-	// if err != nil {
-	// 	fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-	// 	// return
-	// } else {
-	// 	println("git push done successfully")
-	// 	time.Sleep(1 * time.Second)
-	// }
 
 }
