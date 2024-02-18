@@ -564,13 +564,11 @@ func TestWriter(projectFolderPath string) {
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString(`)` + "\n")
 	_, _ = outputFile.WriteString("\n")
-
 	_, _ = outputFile.WriteString(`//const (` + "\n")
 	_, _ = outputFile.WriteString(`	//ForeignKeyViolation = "23503"` + "\n")
 	_, _ = outputFile.WriteString(`	//UniqueViolation     = "23505"` + "\n")
 	_, _ = outputFile.WriteString(`//)` + "\n")
 	_, _ = outputFile.WriteString("\n")
-
 	_, _ = outputFile.WriteString(`var ErrRecordNotFound = pgx.ErrNoRows` + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString(`//var ErrUniqueViolation = &pgconn.PgError{` + "\n")
