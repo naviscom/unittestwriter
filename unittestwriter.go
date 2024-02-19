@@ -515,6 +515,7 @@ func TestWriter(projectFolderPath string) {
 	}
 	var tableX []dbschemareader.Table_Struct
 	var fk_HierarchyX []dbschemareader.FK_Hierarchy
+	fmt.Println("generating unit tests.....")
 	for _, element := range files {
 		if element[len(element)-6:] == `up.sql` {
 			tableX, fk_HierarchyX = dbschemareader.ReadSchema(element)
@@ -525,7 +526,6 @@ func TestWriter(projectFolderPath string) {
 					return
 				}
 				defer outputFile.Close()
-				fmt.Println("generating ", tableX[i].OutputFileName+"_test.go")
 				_, _ = outputFile.WriteString("package db" + "\n")
 				_, _ = outputFile.WriteString("\n")
 				_, _ = outputFile.WriteString("import (" + "\n")
