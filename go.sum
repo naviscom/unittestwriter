@@ -1,2 +1,2 @@
-github.com/naviscom/dbSchemaReader v0.0.0-20231225125445-f7348bb557b2 h1:yNRl3T+dGvrvZBg6ATUM1QnMBtyo9lDktzmqI5EJtwQ=
-github.com/naviscom/dbSchemaReader v0.0.0-20231225125445-f7348bb557b2/go.mod h1:x9Iunk0lLS9Ns6DhMfBsQqF47AkDJ2G6R6ecQNJm1qw=
+github.com/naviscom/dbschemareader v0.0.0-20240219030912-6a8f81de9cf1 h1:tBlplzY2YdISsbtYO6SpGl/lJBBSVoUU7o/TfcpPzTY=
+github.com/naviscom/dbschemareader v0.0.0-20240219030912-6a8f81de9cf1/go.mod h1:NiH004lmCAV7PRlnPMRyW7cHzAoj/fXhwily2Myidyw=

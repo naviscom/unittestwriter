@@ -11,7 +11,7 @@ import (
 	// "bytes"
 
 
-	"github.com/naviscom/dbSchemaReader"
+	"github.com/naviscom/dbschemareader"
 )
 
 func main_testFunc(dirPath string) {
@@ -66,7 +66,7 @@ func main_testFunc(dirPath string) {
 	fmt.Println("main_test.go file has been generated successfully")
 }
 
-func CreateRandomFunction(tableX []dbSchemaReader.Table_Struct, i int, outputFile *os.File) {
+func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFile *os.File) {
 	funcSig := "func createRandom" + tableX[i].FunctionSignature + "(t *testing.T"
 	// _, _ = outputFile.WriteString("func createRandom"+tableX[i].FunctionSignature+"(t *testing.T")
 	for k := 0; k < len(tableX[i].ForeignKeys); k++ {
@@ -116,7 +116,7 @@ _, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
 	_, _ = outputFile.WriteString("\n")
 }
 
-func printTestFuncForCreate(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
+func printTestFuncForCreate(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
 	_, _ = outputFile.WriteString("func TestCreate" + tableX[i].FunctionSignature + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
@@ -150,7 +150,7 @@ func printTestFuncForCreate(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString("\n")
 }
 
-func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
+func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
 	var s int = 0
 	for j := 0; j < len(tableX[i].Table_Columns); j++ {
 		if tableX[i].Table_Columns[j].PrimaryFlag || tableX[i].Table_Columns[j].UniqueFlag {
@@ -231,7 +231,7 @@ func printTestFuncForReadGet(tableX []dbSchemaReader.Table_Struct, i int, fk_Hie
 	}
 }
 
-func printTestFuncForReadList(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
+func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
 	_, _ = outputFile.WriteString("func TestList" + tableX[i].FunctionSignature2 + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
@@ -323,7 +323,7 @@ func printTestFuncForReadList(tableX []dbSchemaReader.Table_Struct, i int, fk_Hi
 	_, _ = outputFile.WriteString("\n")
 }
 
-func printTestFuncForUpdate(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
+func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
 	_, _ = outputFile.WriteString("func TestUpdate" + tableX[i].FunctionSignature + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
@@ -421,7 +421,7 @@ func printTestFuncForUpdate(tableX []dbSchemaReader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString("\n")
 }
 
-func printTestFuncForDelete(tableX []dbSchemaReader.Table_Struct, i int, fk_HierarchyX []dbSchemaReader.FK_Hierarchy, outputFile *os.File) {
+func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
 	_, _ = outputFile.WriteString("func TestDelete" + tableX[i].FunctionSignature + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
@@ -513,11 +513,11 @@ func TestWriter(projectFolderPath string) {
 	if err != nil {
 		panic(err)
 	}
-	var tableX []dbSchemaReader.Table_Struct
-	var fk_HierarchyX []dbSchemaReader.FK_Hierarchy
+	var tableX []dbschemareader.Table_Struct
+	var fk_HierarchyX []dbschemareader.FK_Hierarchy
 	for _, element := range files {
 		if element[len(element)-6:] == `up.sql` {
-			tableX, fk_HierarchyX = dbSchemaReader.ReadSchema(element)
+			tableX, fk_HierarchyX = dbschemareader.ReadSchema(element)
 			for i := 0; i < len(tableX); i++ {
 				outputFile, errs := os.Create(dirPath + "/db/sqlc/" + tableX[i].OutputFileName + "_test.go")
 				if errs != nil {
