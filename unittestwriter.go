@@ -10,7 +10,6 @@ import (
 	// "time"
 	// "bytes"
 
-
 	"github.com/naviscom/dbschemareader"
 )
 
@@ -47,7 +46,7 @@ func main_testFunc(dirPath string) {
 
 	_, _ = outputFile.WriteString("func TestMain(m *testing.M ) {" + "\n")
 	_, _ = outputFile.WriteString("	//var err error" + "\n")
-	_, _ = outputFile.WriteString(`	config, err := util.LoadConfig("../..")`+ "\n")
+	_, _ = outputFile.WriteString(`	config, err := util.LoadConfig("../..")` + "\n")
 	_, _ = outputFile.WriteString(`	if err != nil {` + "\n")
 	_, _ = outputFile.WriteString(`		log.Fatal("cannot load config:", err)` + "\n")
 	_, _ = outputFile.WriteString(`	}` + "\n")
@@ -75,8 +74,21 @@ func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFil
 	}
 	funcSig = funcSig + ") " + tableX[i].FunctionSignature
 	_, _ = outputFile.WriteString(funcSig + " {" + "\n")
+
+	if tableX[i].Table_name == "users" {
+		_, _ = outputFile.WriteString("	hashedPassword, err := util.HashPassword(util.RandomString(6))" + "\n")
+		_, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
+
+	}
 	_, _ = outputFile.WriteString("	arg := Create" + tableX[i].FunctionSignature + "Params{" + "\n")
-	for j := 1; j < len(tableX[i].Table_Columns); j++ {
+	var z int
+	if tableX[i].Table_Columns[0].ColumnType == "bigserial" && tableX[i].Table_Columns[0].PrimaryFlag {
+		z = 1
+	}
+	if tableX[i].Table_Columns[0].ColumnType != "bigserial" && tableX[i].Table_Columns[0].PrimaryFlag {
+		z = 0
+	}
+	for j := z; j < len(tableX[i].Table_Columns); j++ {
 		if tableX[i].Table_Columns[j].ForeignFlag {
 			for k := 0; k < len(tableX[i].ForeignKeys); k++ {
 				if tableX[i].ForeignKeys[k].FK_Column == tableX[i].Table_Columns[j].Column_name {
@@ -84,8 +96,19 @@ func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFil
 				}
 			}
 		} else {
+			if tableX[i].Table_name == "users" && (tableX[i].Table_Columns[j].Column_name == "password_changed_at" || tableX[i].Table_Columns[j].Column_name == "password_created_at") {
+				continue
+			}
 			if tableX[i].Table_Columns[j].ColumnType == "varchar" {
-				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    util.RandomName(8)," + "\n")
+				// fmt.Println("tableX[i].Table_name , tableX[i].Table_Columns[j].Column_name", tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name)
+				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[j].Column_name == "email" {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    util.RandomEmail()," + "\n")
+					continue
+				} else if tableX[i].Table_name == "users" && tableX[i].Table_Columns[j].Column_name == "hashed_password" {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    " + "hashedPassword" + "," + "\n")
+				} else {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    util.RandomName(8)," + "\n")
+				}
 			}
 			if tableX[i].Table_Columns[j].ColumnType == "bigint" {
 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    util.RandomInteger(1, 100)," + "\n")
@@ -99,17 +122,27 @@ func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFil
 		}
 	}
 	_, _ = outputFile.WriteString("	}" + "\n")
-//	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + ", err := testQueries.Create" + tableX[i].FunctionSignature + "(context.Background(), arg)" + "\n")
+	//	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + ", err := testQueries.Create" + tableX[i].FunctionSignature + "(context.Background(), arg)" + "\n")
 	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + ", err := testStore.Create" + tableX[i].FunctionSignature + "(context.Background(), arg)" + "\n")
-_, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
+	_, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
 	_, _ = outputFile.WriteString("	require.NotEmpty(t, " + tableX[i].OutputFileName + ")" + "\n")
-	for j := 1; j < len(tableX[i].Table_Columns); j++ {
+	for j := z; j < len(tableX[i].Table_Columns); j++ {
+		if tableX[i].Table_name == "users" && (tableX[i].Table_Columns[j].Column_name == "password_changed_at" || tableX[i].Table_Columns[j].Column_name == "password_created_at") {
+			if tableX[i].Table_name == "users" && tableX[i].Table_Columns[j].Column_name == "password_changed_at" {
+				_, _ = outputFile.WriteString("	require.True(t, " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams + ".IsZero())" + "\n")
+			}
+			if tableX[i].Table_name == "users" && tableX[i].Table_Columns[j].Column_name == "password_created_at" {
+				_, _ = outputFile.WriteString("	require.NotZero(t, " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams + ")" + "\n")
+			}
+			continue
+		}
 		if tableX[i].Table_Columns[j].ColumnType == "timestamptz" {
-			_, _ = outputFile.WriteString("	require.WithinDuration(t, arg." + tableX[i].Table_Columns[j].ColumnNameParams + ", " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams +", time.Second" +")" + "\n")
-		}else{
+			_, _ = outputFile.WriteString("	require.WithinDuration(t, arg." + tableX[i].Table_Columns[j].ColumnNameParams + ", " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams + ", time.Second" + ")" + "\n")
+		} else {
 			_, _ = outputFile.WriteString("	require.Equal(t, arg." + tableX[i].Table_Columns[j].ColumnNameParams + ", " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[j].ColumnNameParams + ")" + "\n")
 		}
 	}
+
 	_, _ = outputFile.WriteString("	return " + tableX[i].OutputFileName + "\n")
 	_, _ = outputFile.WriteString("}" + "\n")
 	// fmt.Println("	", funcSig+" has been generated successfully")
@@ -263,20 +296,20 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 	}
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
-	_, _ = outputFile.WriteString("	"+"}" + "\n")
+	_, _ = outputFile.WriteString("	" + "}" + "\n")
 
 	_, _ = outputFile.WriteString("	arg := List" + tableX[i].FunctionSignature2 + "Params{" + "\n")
 	for g := 0; g < len(tableX[i].Table_Columns); g++ {
 		if tableX[i].Table_Columns[g].ForeignFlag {
 			for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 				if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-					_, _ = outputFile.WriteString("		"+tableX[i].Table_Columns[g].ColumnNameParams+": "+tableX[i].ForeignKeys[r].FK_Related_SingularTableName+"."+strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column)+","+"\n")
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column) + "," + "\n")
 				}
 			}
 		}
 	}
-	_, _ = outputFile.WriteString("		Limit:         5,"+"\n")
-	_, _ = outputFile.WriteString("		Offset:        5,"+"\n")
+	_, _ = outputFile.WriteString("		Limit:         5," + "\n")
+	_, _ = outputFile.WriteString("		Offset:        5," + "\n")
 	_, _ = outputFile.WriteString("	}" + "\n")
 
 	_, _ = outputFile.WriteString("	" + tableX[i].Table_name + ", err := testStore.List" + tableX[i].FunctionSignature2 + "(context.Background(), " + "arg" + ")" + "\n")
@@ -284,35 +317,37 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 	_, _ = outputFile.WriteString("	" + "require.Len(t, " + tableX[i].Table_name + ", 5)" + "\n")
 	_, _ = outputFile.WriteString("\n")
 
-	_, _ = outputFile.WriteString("	for _, "+tableX[i].OutputFileName+" := range "+tableX[i].Table_name+" {"+"\n")
-	_, _ = outputFile.WriteString("		require.NotEmpty(t, "+tableX[i].OutputFileName+")" + "\n")
+	_, _ = outputFile.WriteString("	for _, " + tableX[i].OutputFileName + " := range " + tableX[i].Table_name + " {" + "\n")
+	_, _ = outputFile.WriteString("		require.NotEmpty(t, " + tableX[i].OutputFileName + ")" + "\n")
 	str := "		require.True(t, "
-	pipeflag :=false
-	if len(tableX[i].ForeignKeys) == 1{
+	pipeflag := false
+	if len(tableX[i].ForeignKeys) == 1 {
 		for g := 0; g < len(tableX[i].Table_Columns); g++ {
 			if tableX[i].Table_Columns[g].ForeignFlag {
 				for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 					if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-						str = str +"arg."+tableX[i].Table_Columns[g].ColumnNameParams +" == " +tableX[i].OutputFileName+"."+tableX[i].Table_Columns[g].ColumnNameParams
+						str = str + "arg." + tableX[i].Table_Columns[g].ColumnNameParams + " == " + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[g].ColumnNameParams
 						pipeflag = true
 					}
 				}
-			}				
+			}
 		}
 		str = str + ")"
 		_, _ = outputFile.WriteString(str + "\n")
 	}
-	if len(tableX[i].ForeignKeys) > 1{
+	if len(tableX[i].ForeignKeys) > 1 {
 		for g := 0; g < len(tableX[i].Table_Columns); g++ {
 			if tableX[i].Table_Columns[g].ForeignFlag {
-				if pipeflag { str = str + " || "}
+				if pipeflag {
+					str = str + " || "
+				}
 				for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 					if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-						str = str +tableX[i].OutputFileName +"."+tableX[i].Table_Columns[g].ColumnNameParams +" == " +tableX[i].ForeignKeys[r].FK_Related_SingularTableName+"."+strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
+						str = str + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[g].ColumnNameParams + " == " + tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
 						pipeflag = true
 					}
 				}
-			}				
+			}
 		}
 		str = str + ")"
 		_, _ = outputFile.WriteString(str + "\n")
@@ -368,6 +403,10 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 			}
 		}
 	}
+	if tableX[i].Table_name == "users" {
+		_, _ = outputFile.WriteString("	hashedPassword, err := util.HashPassword(util.RandomString(6))" + "\n")
+		_, _ = outputFile.WriteString("	require.NoError(t, err)" + "\n")
+	}
 	_, _ = outputFile.WriteString("	arg := Update" + tableX[i].FunctionSignature + "Params{" + "\n")
 	for p := 0; p < len(tableX[i].Table_Columns); p++ {
 		if tableX[i].Table_Columns[p].ForeignFlag {
@@ -378,14 +417,23 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 			}
 		} else {
 			if tableX[i].Table_Columns[p].ColumnType == "bigserial" {
-				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    "+ tableX[i].OutputFileName + "1." + getByColumnName +"," + "\n")
+				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    " + tableX[i].OutputFileName + "1." + getByColumnName + "," + "\n")
 				continue
 			}
-			if tableX[i].Table_Columns[p].ColumnType == "varchar" {
-				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    util.RandomName(8)," + "\n")
+			if tableX[i].Table_Columns[p].ColumnType == "varchar" && tableX[i].Table_Columns[p].PrimaryFlag {
+				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    " + tableX[i].OutputFileName + "1." + getByColumnName + "," + "\n")
 				continue
 			}
-			if tableX[i].Table_Columns[p].ColumnType == "bigint" || tableX[i].Table_Columns[p].ColumnType == "bigserial"{
+			if tableX[i].Table_Columns[p].ColumnType == "varchar" && !tableX[i].Table_Columns[p].PrimaryFlag {
+				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[p].Column_name == "hashed_password" {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    hashedPassword," + "\n")
+					continue
+				} else {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    util.RandomName(8)," + "\n")
+					continue
+				}
+			}
+			if tableX[i].Table_Columns[p].ColumnType == "bigint" || tableX[i].Table_Columns[p].ColumnType == "bigserial" {
 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    util.RandomInteger(1, 100)," + "\n")
 				continue
 			}
@@ -394,13 +442,16 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 				continue
 			}
 			if tableX[i].Table_Columns[p].ColumnType == "timestamptz" {
-				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    time.Now().UTC()," + "\n")
-				continue
+				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[p].Column_name == "password_created_at" {
+					continue
+				} else {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    time.Now().UTC()," + "\n")
+					continue
+				}
 			}
 		}
 	}
 	_, _ = outputFile.WriteString("	}" + "\n")
-
 	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testStore.Update" + tableX[i].FunctionSignature + "(context.Background(), " + "arg" + ")" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.NotEmpty(t, " + tableX[i].OutputFileName + "2)" + "\n")
@@ -408,12 +459,16 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 	for h := 0; h < len(tableX[i].Table_Columns); h++ {
 		if tableX[i].Table_Columns[h].PrimaryFlag || tableX[i].Table_Columns[h].ForeignFlag {
 			_, _ = outputFile.WriteString("	require.Equal(t, " + tableX[i].OutputFileName + "1." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
-		}else {
+		} else {
 			if tableX[i].Table_Columns[h].ColumnType == "timestamptz" {
-				_, _ = outputFile.WriteString("	require.WithinDuration(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ", time.Second)" + "\n")
+				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "password_created_at" {
+					continue
+				} else {
+					_, _ = outputFile.WriteString("	require.WithinDuration(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ", time.Second)" + "\n")
+				}
 			} else {
 				_, _ = outputFile.WriteString("	require.Equal(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
-			}	
+			}
 		}
 	}
 	_, _ = outputFile.WriteString("\n")
@@ -471,7 +526,7 @@ func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testStore.Get" + tableX[i].FunctionSignature + "0" + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.Error(t, err)" + "\n")
 	_, _ = outputFile.WriteString("	" + "require.EqualError(t, err, ErrRecordNotFound.Error())" + "\n")
-	_, _ = outputFile.WriteString("	" + "require.Empty(t, "+ tableX[i].OutputFileName +"2)"+ "\n")
+	_, _ = outputFile.WriteString("	" + "require.Empty(t, " + tableX[i].OutputFileName + "2)" + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString("}" + "\n")
 	_, _ = outputFile.WriteString("\n")
@@ -518,8 +573,11 @@ func TestWriter(projectFolderPath string) {
 	fmt.Println("generating unit tests.....")
 	for _, element := range files {
 		if element[len(element)-6:] == `up.sql` {
-			tableX, fk_HierarchyX = dbschemareader.ReadSchema(element)
+			tableX, fk_HierarchyX = dbschemareader.ReadSchema(element, tableX)
 			for i := 0; i < len(tableX); i++ {
+				if tableX[i].Table_name == "sessions" {
+					continue
+				}
 				outputFile, errs := os.Create(dirPath + "/db/sqlc/" + tableX[i].OutputFileName + "_test.go")
 				if errs != nil {
 					fmt.Println("Failed to create file:", errs)
@@ -576,15 +634,169 @@ func TestWriter(projectFolderPath string) {
 	_, _ = outputFile.WriteString(`//}` + "\n")
 	_, _ = outputFile.WriteString(`//func ErrorCode(err error) string {` + "\n")
 	_, _ = outputFile.WriteString(`	//var pgErr *pgconn.PgError` + "\n")
-	_, _ = outputFile.WriteString(`	//if errors.As(err, &pgErr) {`+"\n")
+	_, _ = outputFile.WriteString(`	//if errors.As(err, &pgErr) {` + "\n")
 	_, _ = outputFile.WriteString(`		//return pgErr.Code` + "\n")
 	_, _ = outputFile.WriteString(`	//}` + "\n")
 	_, _ = outputFile.WriteString(`	//return ""` + "\n")
 	_, _ = outputFile.WriteString(`//}` + "\n")
 
+	//writing jwt_maker_test.go
+	outputFileName = dirPath + "/token/jwt_maker_test.go"
+	outputFile, errs = os.Create(outputFileName)
+	if errs != nil {
+		fmt.Println("Failed to create file:", errs)
+		return
+	}
+	defer outputFile.Close()
+	_, _ = outputFile.WriteString("package token" + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString("import (" + "\n")
+	_, _ = outputFile.WriteString(`	"testing"` + "\n")
+	_, _ = outputFile.WriteString(`	"time"` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	"github.com/golang-jwt/jwt"` + "\n")
+	_, _ = outputFile.WriteString(`	"github.com/stretchr/testify/require"` + "\n")
+	_, _ = outputFile.WriteString(`	"github.com/naviscom/` + projectFolderName + `/util"` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+
+	_, _ = outputFile.WriteString(`func TestJWTMaker(t *testing.T) {` + "\n")
+	_, _ = outputFile.WriteString(`	maker, err := NewJWTMaker(util.RandomString(32))` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	username := util.RandomName(8)` + "\n")
+	_, _ = outputFile.WriteString(`	role := util.UserLevel_1_Role` + "\n")
+	_, _ = outputFile.WriteString(`	duration := time.Minute` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	issuedAt := time.Now()` + "\n")
+	_, _ = outputFile.WriteString(`	expiredAt := issuedAt.Add(duration)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	token, payload, err := maker.CreateToken(username, role, duration)` + "\n")
+	_, _ = outputFile.WriteString(`	//token, err := maker.CreateToken(username, role, duration)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, payload)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	payload, err = maker.VerifyToken(token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, payload)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	require.NotZero(t, payload.ID)` + "\n")
+	_, _ = outputFile.WriteString(`	require.Equal(t, username, payload.Username)` + "\n")
+	_, _ = outputFile.WriteString(`	//require.Equal(t, role, payload.Role)` + "\n")
+	_, _ = outputFile.WriteString(`	require.WithinDuration(t, issuedAt, payload.IssuedAt, time.Second)` + "\n")
+	_, _ = outputFile.WriteString(`	require.WithinDuration(t, expiredAt, payload.ExpiredAt, time.Second)` + "\n")
+	_, _ = outputFile.WriteString(`}` + "\n")
+
+	_, _ = outputFile.WriteString(`func TestExpiredJWTToken(t *testing.T) {` + "\n")
+	_, _ = outputFile.WriteString(`	maker, err := NewJWTMaker(util.RandomString(32))` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	//token, payload, err := maker.CreateToken(util.RandomName(8), util.DepositorRole, -time.Minute)` + "\n")
+	_, _ = outputFile.WriteString(`	token, payload, err := maker.CreateToken(util.RandomName(8), util.UserLevel_1_Role, -time.Minute)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, payload)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	payload, err = maker.VerifyToken(token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.Error(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.EqualError(t, err, ErrExpiredToken.Error())` + "\n")
+	_, _ = outputFile.WriteString(`	require.Nil(t, payload)` + "\n")
+	_, _ = outputFile.WriteString(`}` + "\n")
+	_, _ = outputFile.WriteString("\n")
+
+	_, _ = outputFile.WriteString(`func TestInvalidJWTTokenAlgNone(t *testing.T) {` + "\n")
+	_, _ = outputFile.WriteString(`	//payload, err := NewPayload(util.RandomOwner(), util.DepositorRole, time.Minute)` + "\n")
+	_, _ = outputFile.WriteString(`	payload, err := NewPayload(util.RandomName(8), util.UserLevel_1_Role, time.Minute)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	jwtToken := jwt.NewWithClaims(jwt.SigningMethodNone, payload)` + "\n")
+	_, _ = outputFile.WriteString(`	token, err := jwtToken.SignedString(jwt.UnsafeAllowNoneSignatureType)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	maker, err := NewJWTMaker(util.RandomString(32))` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	payload, err = maker.VerifyToken(token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.Error(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.EqualError(t, err, ErrInvalidToken.Error())` + "\n")
+	_, _ = outputFile.WriteString(`	require.Nil(t, payload)` + "\n")
+	_, _ = outputFile.WriteString(`}` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	fmt.Println("jwt_maker_test.go file has been generated successfully")
+	outputFile.Close()
+
+	//writing paseto_maker_test.go
+	outputFileName = dirPath + "/token/paseto_maker_test.go"
+	outputFile, errs = os.Create(outputFileName)
+	if errs != nil {
+		fmt.Println("Failed to create file:", errs)
+		return
+	}
+	defer outputFile.Close()
+	_, _ = outputFile.WriteString("package token" + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString("import (" + "\n")
+	_, _ = outputFile.WriteString(`	"testing"` + "\n")
+	_, _ = outputFile.WriteString(`	"time"` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	"github.com/stretchr/testify/require"` + "\n")
+	_, _ = outputFile.WriteString(`	"github.com/naviscom/` + projectFolderName + `/util"` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+
+	_, _ = outputFile.WriteString(`func TestPasetoMaker(t *testing.T) {` + "\n")
+	_, _ = outputFile.WriteString(`	maker, err := NewPasetoMaker(util.RandomString(32))` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	username := util.RandomName(8)` + "\n")
+	_, _ = outputFile.WriteString(`	role := util.UserLevel_1_Role` + "\n")
+	_, _ = outputFile.WriteString(`	duration := time.Minute` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	issuedAt := time.Now()` + "\n")
+	_, _ = outputFile.WriteString(`	expiredAt := issuedAt.Add(duration)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	token, payload, err := maker.CreateToken(username, role, duration)` + "\n")
+	_, _ = outputFile.WriteString(`	//token, err := maker.CreateToken(username, role, duration)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, payload)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	payload, err = maker.VerifyToken(token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, payload)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	require.NotZero(t, payload.ID)` + "\n")
+	_, _ = outputFile.WriteString(`	require.Equal(t, username, payload.Username)` + "\n")
+	_, _ = outputFile.WriteString(`	//require.Equal(t, role, payload.Role)` + "\n")
+	_, _ = outputFile.WriteString(`	require.WithinDuration(t, issuedAt, payload.IssuedAt, time.Second)` + "\n")
+	_, _ = outputFile.WriteString(`	require.WithinDuration(t, expiredAt, payload.ExpiredAt, time.Second)` + "\n")
+	_, _ = outputFile.WriteString(`}` + "\n")
+
+	_, _ = outputFile.WriteString(`func TestExpiredPasetoToken(t *testing.T) {` + "\n")
+	_, _ = outputFile.WriteString(`	maker, err := NewPasetoMaker(util.RandomString(32))` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	//token, payload, err := maker.CreateToken(util.RandomName(8), util.DepositorRole, -time.Minute)` + "\n")
+	_, _ = outputFile.WriteString(`	token, payload, err := maker.CreateToken(util.RandomName(8), util.UserLevel_1_Role, -time.Minute)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NoError(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.NotEmpty(t, payload)` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(`	payload, err = maker.VerifyToken(token)` + "\n")
+	_, _ = outputFile.WriteString(`	require.Error(t, err)` + "\n")
+	_, _ = outputFile.WriteString(`	require.EqualError(t, err, ErrExpiredToken.Error())` + "\n")
+	_, _ = outputFile.WriteString(`	require.Nil(t, payload)` + "\n")
+	_, _ = outputFile.WriteString(`}` + "\n")
+	_, _ = outputFile.WriteString("\n")
+	fmt.Println("paseto_maker_test.go file has been generated successfully")
+	outputFile.Close()
+
 	//Executing goimports
 	cmd := exec.Command("goimports", "-w", ".")
-	cmd.Dir = dirPath+"/db/sqlc"
+	cmd.Dir = dirPath + "/db/sqlc"
 	cmd.Run()
 	println("goimports executed successfully")
 	// var stderr bytes.Buffer
