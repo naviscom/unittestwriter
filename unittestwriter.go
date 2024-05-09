@@ -155,27 +155,43 @@ func printTestFuncForCreate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-					for g := 0; g < len(tableX); g++ {
-						if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-							for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-								_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					for g := 0; g < len(fk_HierarchyX); g++ {
+						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+								}
+								if h == 0 {
+									break
+								}
 							}
-							break
 						}
 					}
+					// for g := 0; g < len(tableX); g++ {
+					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					// 		}
+					// 		break
+					// 	}
+					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
 		}
 	}
 	_, _ = outputFile.WriteString("	createRandom" + tableX[i].FunctionSignature + "(t")
-	for g := 0; g < len(tableX); g++ {
-		if tableX[g].Table_name == tableX[i].Table_name {
-			for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-				_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+	for g := 0; g < len(fk_HierarchyX); g++ {
+		if fk_HierarchyX[g].TableName == tableX[i].Table_name {
+			for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+				for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+					_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+				}
+				if h == 0 {
+					break
+				}
 			}
-			break
 		}
 	}
 	_, _ = outputFile.WriteString(")" + "\n")
@@ -193,34 +209,64 @@ func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_Hie
 				if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 					for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 						for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-							_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-							for g := 0; g < len(tableX); g++ {
-								if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-									for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-										_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+							_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+							for g := 0; g < len(fk_HierarchyX); g++ {
+								if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+									for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+										for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+											_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+										}
+										if h == 0 {
+											break
+										}
 									}
-									break
 								}
 							}
+							// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+							// for g := 0; g < len(tableX); g++ {
+							// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+							// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+							// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+							// 		}
+							// 		break
+							// 	}
+							// }
 							_, _ = outputFile.WriteString(")" + "\n")
 						}
 					}
 				}
 			}
 			_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "1 := createRandom" + tableX[i].FunctionSignature + "(t")
-			for g := 0; g < len(tableX); g++ {
-				if tableX[g].Table_name == tableX[i].Table_name {
-					if len(tableX[g].ForeignKeys) > 0 {
-						for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-							_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+			for g := 0; g < len(fk_HierarchyX); g++ {
+				if fk_HierarchyX[g].TableName == tableX[i].Table_name {
+					if len(fk_HierarchyX[g].RelatedTablesLevels) > 0 {
+						for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+							for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+								_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+							}
+							_, _ = outputFile.WriteString(")" + "\n")
+							if h == 0 {
+								break
+							}
 						}
-						_, _ = outputFile.WriteString(")" + "\n")
-						break
 					} else {
 						_, _ = outputFile.WriteString(")" + "\n")
 					}
 				}
 			}
+			// for g := 0; g < len(tableX); g++ {
+			// 	if tableX[g].Table_name == tableX[i].Table_name {
+			// 		if len(tableX[g].ForeignKeys) > 0 {
+			// 			for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+			// 				_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+			// 			}
+			// 			_, _ = outputFile.WriteString(")" + "\n")
+			// 			break
+			// 		} else {
+			// 			_, _ = outputFile.WriteString(")" + "\n")
+			// 		}
+			// 	}
+			// }
 			// if j == 0 {
 			// 	for g := 0; g < len(tableX); g++ {
 			// 		if tableX[g].Table_name == tableX[i].Table_name {
@@ -270,15 +316,28 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-					for g := 0; g < len(tableX); g++ {
-						if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-							for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-								_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					for g := 0; g < len(fk_HierarchyX); g++ {
+						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+								}
+								if h == 0 {
+									break
+								}
 							}
-							break
 						}
 					}
+					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					// for g := 0; g < len(tableX); g++ {
+					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					// 		}
+					// 		break
+					// 	}
+					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
@@ -286,14 +345,26 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 	}
 	_, _ = outputFile.WriteString("	for i := 0; i < 10; i++ {" + "\n")
 	_, _ = outputFile.WriteString("		createRandom" + tableX[i].FunctionSignature + "(t")
-	for g := 0; g < len(tableX); g++ {
-		if tableX[g].Table_name == tableX[i].Table_name {
-			for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-				_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+	for g := 0; g < len(fk_HierarchyX); g++ {
+		if fk_HierarchyX[g].TableName == tableX[i].Table_name {
+			for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+				for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+					_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+				}
+				if h == 0 {
+					break
+				}
 			}
-			break
 		}
 	}
+	// for g := 0; g < len(tableX); g++ {
+	// 	if tableX[g].Table_name == tableX[i].Table_name {
+	// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+	// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+	// 		}
+	// 		break
+	// 	}
+	// }
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString("	" + "}" + "\n")
@@ -303,7 +374,7 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 		if tableX[i].Table_Columns[g].ForeignFlag {
 			for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 				if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column) + "," + "\n")
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column) + "," + "\n")
 				}
 			}
 		}
@@ -343,7 +414,7 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 				}
 				for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 					if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-						str = str + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[g].ColumnNameParams + " == " + tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
+						str = str + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[g].ColumnNameParams + " == " + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
 						pipeflag = true
 					}
 				}
@@ -364,34 +435,64 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-					for g := 0; g < len(tableX); g++ {
-						if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-							for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-								_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					for g := 0; g < len(fk_HierarchyX); g++ {
+						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+								}
+								if h == 0 {
+									break
+								}
 							}
-							break
 						}
 					}
+					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					// for g := 0; g < len(tableX); g++ {
+					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					// 		}
+					// 		break
+					// 	}
+					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
 		}
 	}
 	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "1 := createRandom" + tableX[i].FunctionSignature + "(t")
-	for g := 0; g < len(tableX); g++ {
-		if tableX[g].Table_name == tableX[i].Table_name {
-			if len(tableX[g].ForeignKeys) > 0 {
-				for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-					_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+	for g := 0; g < len(fk_HierarchyX); g++ {
+		if fk_HierarchyX[g].TableName == tableX[i].Table_name {
+			if len(fk_HierarchyX[g].RelatedTablesLevels) > 0 {
+				for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+					for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+						_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+					}
+					_, _ = outputFile.WriteString(")" + "\n")
+					if h == 0 {
+						break
+					}
 				}
-				_, _ = outputFile.WriteString(")" + "\n")
-				break
 			} else {
 				_, _ = outputFile.WriteString(")" + "\n")
 			}
 		}
 	}
+	// for g := 0; g < len(tableX); g++ {
+	// 	if tableX[g].Table_name == tableX[i].Table_name {
+	// 		if len(tableX[g].ForeignKeys) > 0 {
+	// 			for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+	// 				_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+	// 			}
+	// 			_, _ = outputFile.WriteString(")" + "\n")
+	// 			break
+	// 		} else {
+	// 			_, _ = outputFile.WriteString(")" + "\n")
+	// 		}
+	// 	}
+	// }
 	var getByColumnName string
 	for g := 0; g < len(tableX); g++ {
 		if tableX[g].Table_name == tableX[i].Table_name {
@@ -412,7 +513,7 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 		if tableX[i].Table_Columns[p].ForeignFlag {
 			for k := 0; k < len(tableX[i].ForeignKeys); k++ {
 				if tableX[i].ForeignKeys[k].FK_Column == tableX[i].Table_Columns[p].Column_name {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    	" + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+"\n"))
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    	" + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+"\n"))
 				}
 			}
 		} else {
@@ -482,34 +583,64 @@ func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-					for g := 0; g < len(tableX); g++ {
-						if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-							for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-								_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					for g := 0; g < len(fk_HierarchyX); g++ {
+						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+								}
+								if h == 0 {
+									break
+								}
 							}
-							break
 						}
 					}
+					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					// for g := 0; g < len(tableX); g++ {
+					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
+					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+					// 		}
+					// 		break
+					// 	}
+					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
 		}
 	}
 	_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "1 := createRandom" + tableX[i].FunctionSignature + "(t")
-	for g := 0; g < len(tableX); g++ {
-		if tableX[g].Table_name == tableX[i].Table_name {
-			if len(tableX[g].ForeignKeys) > 0 {
-				for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-					_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+	for g := 0; g < len(fk_HierarchyX); g++ {
+		if fk_HierarchyX[g].TableName == tableX[i].Table_name {
+			if len(fk_HierarchyX[g].RelatedTablesLevels) > 0 {
+				for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
+					for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
+						_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+					}
+					_, _ = outputFile.WriteString(")" + "\n")
+					if h == 0 {
+						break
+					}
 				}
-				_, _ = outputFile.WriteString(")" + "\n")
-				break
 			} else {
 				_, _ = outputFile.WriteString(")" + "\n")
 			}
 		}
 	}
+	// for g := 0; g < len(tableX); g++ {
+	// 	if tableX[g].Table_name == tableX[i].Table_name {
+	// 		if len(tableX[g].ForeignKeys) > 0 {
+	// 			for h := 0; h < len(tableX[g].ForeignKeys); h++ {
+	// 				_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
+	// 			}
+	// 			_, _ = outputFile.WriteString(")" + "\n")
+	// 			break
+	// 		} else {
+	// 			_, _ = outputFile.WriteString(")" + "\n")
+	// 		}
+	// 	}
+	// }
 	var getByColumnName string
 	for g := 0; g < len(tableX); g++ {
 		if tableX[g].Table_name == tableX[i].Table_name {
