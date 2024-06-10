@@ -13,7 +13,7 @@ import (
 	"github.com/naviscom/dbschemareader"
 )
 
-func main_testFunc(dirPath string) {
+func main_testFunc(projectFolderName string, dirPath string) {
 	outputFileName := dirPath + "/db/sqlc/main_test.go"
 	outputFile, errs := os.Create(outputFileName)
 	if errs != nil {
@@ -29,6 +29,8 @@ func main_testFunc(dirPath string) {
 	_, _ = outputFile.WriteString(` "os"` + "\n")
 	_, _ = outputFile.WriteString(` "testing"` + "\n")
 	_, _ = outputFile.WriteString("\n")
+	_, _ = outputFile.WriteString(` "github.com/jackc/pgx/v5/pgxpool"` + "\n")
+	_, _ = outputFile.WriteString(` "github.com/naviscom/`+projectFolderName+`/util"` + "\n")
 	_, _ = outputFile.WriteString(` //_ "github.com/lib/pq"` + "\n")
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
@@ -663,34 +665,14 @@ func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString("\n")
 }
 
-func TestWriter(projectFolderPath string) {
+func TestWriter(projectFolderName string, dirPath string) {
 	//generating main_test.go
-	dirPath := projectFolderPath
-	var files []string
-	var x int
-	var projectFolderName string //, projectFolderPath string
-	var namewithpath bool
-	namewithpath = false
-	temp := strings.Split(dirPath, "")
-	for x = len(temp) - 1; x >= 0; x-- {
-		if temp[x] == `/` {
-			namewithpath = true
-			break
-		}
-	}
-	if namewithpath {
-		projectFolderName = strings.Join(temp[x+1:], "")
-		// projectFolderPath = strings.Join(temp[:x], "")
-	} else {
-		projectFolderName = dirPath
-	}
 	/////////////////////////////
-	//generate main_test.go file
-	/////////////////////////////
-	main_testFunc(dirPath)
+	main_testFunc(projectFolderName, dirPath)
 	/////////////////////////////////////////////////
 	//generate unit tests for go file in sqlc folder
 	/////////////////////////////////////////////////
+	var files []string
 	pathToSearch := dirPath + "/db/migration"
 	err := filepath.Walk(pathToSearch, func(path string, info os.FileInfo, err error) error {
 		files = append(files, path)
