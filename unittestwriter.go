@@ -13,7 +13,7 @@ import (
 	"github.com/naviscom/dbschemareader"
 )
 
-func main_testFunc(projectFolderName string, dirPath string) {
+func main_testFunc(projectFolderName string, gitHubAccountName string, dirPath string) {
 	outputFileName := dirPath + "/db/sqlc/main_test.go"
 	outputFile, errs := os.Create(outputFileName)
 	if errs != nil {
@@ -30,7 +30,7 @@ func main_testFunc(projectFolderName string, dirPath string) {
 	_, _ = outputFile.WriteString(` "testing"` + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString(` "github.com/jackc/pgx/v5/pgxpool"` + "\n")
-	_, _ = outputFile.WriteString(` "github.com/naviscom/`+projectFolderName+`/util"` + "\n")
+	_, _ = outputFile.WriteString(` "github.com/`+gitHubAccountName+`/`+projectFolderName+`/util"` + "\n")
 	_, _ = outputFile.WriteString(` //_ "github.com/lib/pq"` + "\n")
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
@@ -665,10 +665,10 @@ func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString("\n")
 }
 
-func TestWriter(projectFolderName string, dirPath string) {
+func TestWriter(projectFolderName string, gitHubAccountName string, dirPath string) {
 	//generating main_test.go
 	/////////////////////////////
-	main_testFunc(projectFolderName, dirPath)
+	main_testFunc(projectFolderName, gitHubAccountName, dirPath)
 	/////////////////////////////////////////////////
 	//generate unit tests for go file in sqlc folder
 	/////////////////////////////////////////////////
@@ -704,7 +704,7 @@ func TestWriter(projectFolderName string, dirPath string) {
 				_, _ = outputFile.WriteString(`	"time"` + "\n")
 				_, _ = outputFile.WriteString(`	"testing"` + "\n")
 				_, _ = outputFile.WriteString(`	"github.com/stretchr/testify/require"` + "\n")
-				_, _ = outputFile.WriteString(`	"github.com/naviscom/` + projectFolderName + `/util"` + "\n")
+				_, _ = outputFile.WriteString(`	"github.com/`+gitHubAccountName+`/` + projectFolderName + `/util"` + "\n")
 				_, _ = outputFile.WriteString(")" + "\n")
 				_, _ = outputFile.WriteString("\n")
 				CreateRandomFunction(tableX[:], i, outputFile)
@@ -769,7 +769,7 @@ func TestWriter(projectFolderName string, dirPath string) {
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString(`	"github.com/golang-jwt/jwt"` + "\n")
 	_, _ = outputFile.WriteString(`	"github.com/stretchr/testify/require"` + "\n")
-	_, _ = outputFile.WriteString(`	"github.com/naviscom/` + projectFolderName + `/util"` + "\n")
+	_, _ = outputFile.WriteString(`	"github.com/`+gitHubAccountName+`/` + projectFolderName + `/util"` + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString(`)` + "\n")
 	_, _ = outputFile.WriteString("\n")
@@ -855,7 +855,7 @@ func TestWriter(projectFolderName string, dirPath string) {
 	_, _ = outputFile.WriteString(`	"time"` + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString(`	"github.com/stretchr/testify/require"` + "\n")
-	_, _ = outputFile.WriteString(`	"github.com/naviscom/` + projectFolderName + `/util"` + "\n")
+	_, _ = outputFile.WriteString(`	"github.com/`+gitHubAccountName+`/` + projectFolderName + `/util"` + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString(`)` + "\n")
 	_, _ = outputFile.WriteString("\n")
