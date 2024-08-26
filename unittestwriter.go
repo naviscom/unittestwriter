@@ -688,7 +688,7 @@ func TestWriter(projectFolderName string, gitHubAccountName string, dirPath stri
 		if element[len(element)-6:] == `up.sql` {
 			tableX, fk_HierarchyX = dbschemareader.ReadSchema(element, tableX)
 			for i := 0; i < len(tableX); i++ {
-				if tableX[i].Table_name == "sessions" {
+				if tableX[i].Table_name == "sessions" ||  tableX[i].Table_name == "activities"{
 					continue
 				}
 				outputFile, errs := os.Create(dirPath + "/db/sqlc/" + tableX[i].OutputFileName + "_test.go")
