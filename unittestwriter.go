@@ -450,15 +450,6 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 							}
 						}
 					}
-					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-					// for g := 0; g < len(tableX); g++ {
-					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-					// 		}
-					// 		break
-					// 	}
-					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
@@ -482,19 +473,6 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 			}
 		}
 	}
-	// for g := 0; g < len(tableX); g++ {
-	// 	if tableX[g].Table_name == tableX[i].Table_name {
-	// 		if len(tableX[g].ForeignKeys) > 0 {
-	// 			for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-	// 				_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-	// 			}
-	// 			_, _ = outputFile.WriteString(")" + "\n")
-	// 			break
-	// 		} else {
-	// 			_, _ = outputFile.WriteString(")" + "\n")
-	// 		}
-	// 	}
-	// }
 	var getByColumnName string
 	for g := 0; g < len(tableX); g++ {
 		if tableX[g].Table_name == tableX[i].Table_name {
@@ -528,6 +506,9 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 				continue
 			}
 			if tableX[i].Table_Columns[p].ColumnType == "varchar" && !tableX[i].Table_Columns[p].PrimaryFlag {
+				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[p].Column_name == "email" {
+					continue
+				}
 				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[p].Column_name == "hashed_password" {
 					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    hashedPassword," + "\n")
 					continue
@@ -564,6 +545,9 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 			_, _ = outputFile.WriteString("	require.Equal(t, " + tableX[i].OutputFileName + "1." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
 		} else {
 			if tableX[i].Table_Columns[h].ColumnType == "timestamptz" {
+				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "email" {
+					continue
+				}
 				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "password_created_at" {
 					continue
 				} else {
