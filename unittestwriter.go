@@ -541,22 +541,24 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 	_, _ = outputFile.WriteString("	" + "require.NotEmpty(t, " + tableX[i].OutputFileName + "2)" + "\n")
 	_, _ = outputFile.WriteString("\n")
 	for h := 0; h < len(tableX[i].Table_Columns); h++ {
+		if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "email" {
+			continue
+		}
+		if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "password_created_at" {
+			continue
+		}
 		if tableX[i].Table_Columns[h].PrimaryFlag || tableX[i].Table_Columns[h].ForeignFlag {
 			_, _ = outputFile.WriteString("	require.Equal(t, " + tableX[i].OutputFileName + "1." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
-		} else {
-			if tableX[i].Table_Columns[h].ColumnType == "timestamptz" {
-				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "password_created_at" {
-					continue
-				} else {
-					_, _ = outputFile.WriteString("	require.WithinDuration(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ", time.Second)" + "\n")
-				}
-			} else {
-				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "email" {
-					continue
-				}
-				_, _ = outputFile.WriteString("	require.Equal(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
-			}
+			continue
 		}
+		if tableX[i].Table_Columns[h].ColumnType == "timestamptz" {
+			_, _ = outputFile.WriteString("	require.WithinDuration(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ", time.Second)" + "\n")
+			continue
+		}else{
+			_, _ = outputFile.WriteString("	require.Equal(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
+			continue
+		}
+		
 	}
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString("}" + "\n")
