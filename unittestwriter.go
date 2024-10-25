@@ -545,15 +545,15 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 			_, _ = outputFile.WriteString("	require.Equal(t, " + tableX[i].OutputFileName + "1." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
 		} else {
 			if tableX[i].Table_Columns[h].ColumnType == "timestamptz" {
-				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "email" {
-					continue
-				}
 				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "password_created_at" {
 					continue
 				} else {
 					_, _ = outputFile.WriteString("	require.WithinDuration(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ", time.Second)" + "\n")
 				}
 			} else {
+				if tableX[i].Table_name == "users" && tableX[i].Table_Columns[h].Column_name == "email" {
+					continue
+				}
 				_, _ = outputFile.WriteString("	require.Equal(t, " + "arg." + tableX[i].Table_Columns[h].ColumnNameParams + ", " + tableX[i].OutputFileName + "2." + tableX[i].Table_Columns[h].ColumnNameParams + ")" + "\n")
 			}
 		}
