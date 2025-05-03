@@ -133,7 +133,7 @@ func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFil
 		if tableX[i].Table_Columns[j].ForeignFlag {
 			for k := 0; k < len(tableX[i].ForeignKeys); k++ {
 				if tableX[i].ForeignKeys[k].FK_Column == tableX[i].Table_Columns[j].Column_name {
-					fmt.Println("tableX[i].Table_Columns[j].Column_name : ", tableX[i].Table_Columns[j].Column_name)					
+					fmt.Println("tableX[i].Table_Columns[j].Column_name : ", tableX[i].Table_Columns[j].Column_name, "tableX[i].ForeignKeys[k].FK_Column: ", tableX[i].ForeignKeys[k].FK_Column)					
 					FormatedFieldName := FormatFieldName(tableX[i].ForeignKeys[k].FK_Related_Table_Column)
 					fmt.Println("FormatedFieldName : ", FormatedFieldName)
 					fmt.Println(FormatedFieldName)
