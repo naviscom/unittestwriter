@@ -28,13 +28,17 @@ func ToCamelCase(input string) string {
 }
 
 func FormatFieldName(input string) string {
+	fmt.Println("input: ", input)
 	parts := strings.Split(input, "_")
+	fmt.Println("parts just after split: ")
 	for i := 0; i < len(parts); i++ {
 		word := strings.ToLower(parts[i])
+		fmt.Println("word: ", word)
 		if word == "id" {
 			parts[i] = "ID"
 		} else if len(word) > 0 {
 			parts[i] = strings.ToUpper(word[:1]) + word[1:]
+			fmt.Println("parts: ", parts)
 		}
 	}
 	// Ensure first letter of the final result is capitalized
@@ -42,6 +46,7 @@ func FormatFieldName(input string) string {
 	if len(result) > 0 {
 		result = strings.ToUpper(result[:1]) + result[1:]
 	}
+	fmt.Println("result: ", result)
 	return result
 }
 
@@ -128,7 +133,10 @@ func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFil
 		if tableX[i].Table_Columns[j].ForeignFlag {
 			for k := 0; k < len(tableX[i].ForeignKeys); k++ {
 				if tableX[i].ForeignKeys[k].FK_Column == tableX[i].Table_Columns[j].Column_name {
+					fmt.Println("tableX[i].Table_Columns[j].Column_name : ", tableX[i].Table_Columns[j].Column_name)					
 					FormatedFieldName := FormatFieldName(tableX[i].ForeignKeys[k].FK_Related_Table_Column)
+					fmt.Println("FormatedFieldName : ", FormatedFieldName)
+					fmt.Println(FormatedFieldName)
 					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    	" + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + FormatedFieldName+","+"\n")
 					// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    	" + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+"\n"))
 				}
@@ -395,11 +403,11 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 		if tableX[i].Table_Columns[g].ForeignFlag {
 			for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 				if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-					fmt.Println(tableX[i].Table_Columns[g].Column_name)
+					// fmt.Println(tableX[i].Table_Columns[g].Column_name)
 					FormatedFieldName := FormatFieldName(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
-					if tableX[i].Table_name == "bands" {
-						fmt.Println(FormatedFieldName)
-					}
+					// if tableX[i].Table_name == "bands" {
+					// 	fmt.Println(FormatedFieldName)
+					// }
 					key := tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName
 					if val, ok := fkVarMap[key]; ok {
 						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + val + "." + FormatedFieldName+","+"\n")
