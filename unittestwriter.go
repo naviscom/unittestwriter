@@ -7,11 +7,43 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
+
 	// "time"
 	// "bytes"
 
 	"github.com/naviscom/dbschemareader"
 )
+
+func ToCamelCase(input string) string {
+	parts := strings.Split(input, "_")
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 {
+			runes := []rune(parts[i])
+			runes[0] = unicode.ToUpper(runes[0])
+			parts[i] = string(runes)
+		}
+	}
+	return strings.Join(parts, "")
+}
+
+func FormatFieldName(input string) string {
+	parts := strings.Split(input, "_")
+	for i := 0; i < len(parts); i++ {
+		word := strings.ToLower(parts[i])
+		if word == "id" {
+			parts[i] = "ID"
+		} else if len(word) > 0 {
+			parts[i] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+	// Ensure first letter of the final result is capitalized
+	result := strings.Join(parts, "")
+	if len(result) > 0 {
+		result = strings.ToUpper(result[:1]) + result[1:]
+	}
+	return result
+}
 
 func main_testFunc(projectFolderName string, gitHubAccountName string, dirPath string) {
 	outputFileName := dirPath + "/db/sqlc/main_test.go"
@@ -69,12 +101,14 @@ func main_testFunc(projectFolderName string, gitHubAccountName string, dirPath s
 
 func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFile *os.File) {
 	funcSig := "func createRandom" + tableX[i].FunctionSignature + "(t *testing.T"
-	// _, _ = outputFile.WriteString("func createRandom"+tableX[i].FunctionSignature+"(t *testing.T")
 	for k := 0; k < len(tableX[i].ForeignKeys); k++ {
-		funcSig = funcSig + ", " + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + " " + tableX[i].ForeignKeys[k].FK_Related_TableName_Singular_Object
-		// _, _ = outputFile.WriteString(", "+ tableX[i].ForeignKeys[k].FK_Related_SingularTableName+" "+ tableX[i].ForeignKeys[k].FK_Related_TableName_Singular_Object)
+		CamelCase := ToCamelCase(tableX[i].ForeignKeys[k].FK_Related_TableName_Singular_Object)
+		funcSig = funcSig + ", " + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + " " + CamelCase
+		// funcSig = funcSig + ", " + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + " " + tableX[i].ForeignKeys[k].FK_Related_TableName_Singular_Object
 	}
-	funcSig = funcSig + ") " + tableX[i].FunctionSignature
+	CamelCase := ToCamelCase(tableX[i].FunctionSignature)
+	funcSig = funcSig + ") " + CamelCase
+	// funcSig = funcSig + ") " + tableX[i].FunctionSignature
 	_, _ = outputFile.WriteString(funcSig + " {" + "\n")
 
 	if tableX[i].Table_name == "users" {
@@ -84,17 +118,19 @@ func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFil
 	}
 	_, _ = outputFile.WriteString("	arg := Create" + tableX[i].FunctionSignature + "Params{" + "\n")
 	var z int
-	if tableX[i].Table_Columns[0].ColumnType == "bigserial" && tableX[i].Table_Columns[0].PrimaryFlag {
+	if tableX[i].Table_Columns[0].PrimaryFlag && (tableX[i].Table_Columns[0].ColumnType == "bigserial" || tableX[i].Table_Columns[0].ColumnType == "uuid") {
 		z = 1
 	}
-	if tableX[i].Table_Columns[0].ColumnType != "bigserial" && tableX[i].Table_Columns[0].PrimaryFlag {
+	if tableX[i].Table_Columns[0].PrimaryFlag && tableX[i].Table_Columns[0].ColumnType != "bigserial" && tableX[i].Table_Columns[0].ColumnType != "uuid" {
 		z = 0
 	}
 	for j := z; j < len(tableX[i].Table_Columns); j++ {
 		if tableX[i].Table_Columns[j].ForeignFlag {
 			for k := 0; k < len(tableX[i].ForeignKeys); k++ {
 				if tableX[i].ForeignKeys[k].FK_Column == tableX[i].Table_Columns[j].Column_name {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    	" + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+"\n"))
+					FormatedFieldName := FormatFieldName(tableX[i].ForeignKeys[k].FK_Related_Table_Column)
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    	" + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + FormatedFieldName+","+"\n")
+					// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    	" + tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+"\n"))
 				}
 			}
 		} else {
@@ -152,17 +188,31 @@ func CreateRandomFunction(tableX []dbschemareader.Table_Struct, i int, outputFil
 }
 
 func printTestFuncForCreate(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
+	var fkVarMap = make(map[string]string)
 	_, _ = outputFile.WriteString("func TestCreate" + tableX[i].FunctionSignature + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					varName := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName+strconv.Itoa(k) + strconv.Itoa(l) + strconv.Itoa(m)
+					key := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName
+					// Only store if key doesn't exist
+					if _, exists := fkVarMap[key]; !exists {
+						fkVarMap[key] = varName
+						_, _ = outputFile.WriteString("	" + varName+ " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					} else{
+						continue
+					}
+					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName+ " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
 					for g := 0; g < len(fk_HierarchyX); g++ {
 						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
 							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
-								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {				
+									key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+									if val, ok := fkVarMap[key]; ok {
+										_, _ = outputFile.WriteString(", " + val)
+									}
+									// _, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 								}
 								if h == 0 {
 									break
@@ -170,14 +220,6 @@ func printTestFuncForCreate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 							}
 						}
 					}
-					// for g := 0; g < len(tableX); g++ {
-					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-					// 		}
-					// 		break
-					// 	}
-					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
@@ -188,7 +230,11 @@ func printTestFuncForCreate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 		if fk_HierarchyX[g].TableName == tableX[i].Table_name {
 			for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 				for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-					_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+					key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+					if val, ok := fkVarMap[key]; ok {
+						_, _ = outputFile.WriteString(", " + val)
+					}
+					// _, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 				}
 				if h == 0 {
 					break
@@ -204,6 +250,7 @@ func printTestFuncForCreate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
 	var s int = 0
 	for j := 0; j < len(tableX[i].Table_Columns); j++ {
+		var fkVarMap = make(map[string]string)
 		if tableX[i].Table_Columns[j].PrimaryFlag || tableX[i].Table_Columns[j].UniqueFlag {
 			var getByColumnName string = tableX[i].Table_Columns[j].ColumnNameParams
 			_, _ = outputFile.WriteString("func TestGet" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(t *testing.T) {" + "\n")
@@ -211,12 +258,25 @@ func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_Hie
 				if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 					for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 						for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-							_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+							varName := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName+strconv.Itoa(k) + strconv.Itoa(l) + strconv.Itoa(m)
+							key := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName
+							// Only store if key doesn't exist
+							if _, exists := fkVarMap[key]; !exists {
+								fkVarMap[key] = varName
+								_, _ = outputFile.WriteString("	" + varName+ " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")		
+							} else{
+								continue
+							}
+							// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
 							for g := 0; g < len(fk_HierarchyX); g++ {
 								if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
 									for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 										for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-											_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+											key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+											if val, ok := fkVarMap[key]; ok {
+												_, _ = outputFile.WriteString(", " + val)
+											}		
+											// _, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 										}
 										if h == 0 {
 											break
@@ -224,15 +284,6 @@ func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_Hie
 									}
 								}
 							}
-							// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-							// for g := 0; g < len(tableX); g++ {
-							// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-							// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-							// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-							// 		}
-							// 		break
-							// 	}
-							// }
 							_, _ = outputFile.WriteString(")" + "\n")
 						}
 					}
@@ -244,7 +295,11 @@ func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_Hie
 					if len(fk_HierarchyX[g].RelatedTablesLevels) > 0 {
 						for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 							for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-								_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+								key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+								if val, ok := fkVarMap[key]; ok {
+									_, _ = outputFile.WriteString(", " + val)
+								}
+								// _, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 							}
 							_, _ = outputFile.WriteString(")" + "\n")
 							if h == 0 {
@@ -256,43 +311,6 @@ func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_Hie
 					}
 				}
 			}
-			// for g := 0; g < len(tableX); g++ {
-			// 	if tableX[g].Table_name == tableX[i].Table_name {
-			// 		if len(tableX[g].ForeignKeys) > 0 {
-			// 			for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-			// 				_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-			// 			}
-			// 			_, _ = outputFile.WriteString(")" + "\n")
-			// 			break
-			// 		} else {
-			// 			_, _ = outputFile.WriteString(")" + "\n")
-			// 		}
-			// 	}
-			// }
-			// if j == 0 {
-			// 	for g := 0; g < len(tableX); g++ {
-			// 		if tableX[g].Table_name == tableX[i].Table_name {
-			// 			for h := 0; h < len(tableX[g].Table_Columns); h++ {
-			// 				if tableX[g].Table_Columns[h].PrimaryFlag {
-			// 					getByColumnName = tableX[g].Table_Columns[h].ColumnNameParams
-			// 					break
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// }
-			// if j == 1 {
-			// 	for g := 0; g < len(tableX); g++ {
-			// 		if tableX[g].Table_name == tableX[i].Table_name {
-			// 			for h := 0; h < len(tableX[g].Table_Columns); h++ {
-			// 				if tableX[g].Table_Columns[h].UniqueFlag {
-			// 					getByColumnName = tableX[g].Table_Columns[h].ColumnNameParams
-			// 					break
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// }
 			_, _ = outputFile.WriteString("	" + tableX[i].OutputFileName + "2, err := testStore.Get" + tableX[i].FunctionSignature + strconv.Itoa(s) + "(context.Background(), " + tableX[i].OutputFileName + "1." + getByColumnName + ")" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NoError(t, err)" + "\n")
 			_, _ = outputFile.WriteString("	" + "require.NotEmpty(t, " + tableX[i].OutputFileName + "2)" + "\n")
@@ -313,17 +331,31 @@ func printTestFuncForReadGet(tableX []dbschemareader.Table_Struct, i int, fk_Hie
 }
 
 func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
+	var fkVarMap = make(map[string]string)
 	_, _ = outputFile.WriteString("func TestList" + tableX[i].FunctionSignature2 + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					varName := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName+strconv.Itoa(k) + strconv.Itoa(l) + strconv.Itoa(m)
+					key := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName
+					// Only store if key doesn't exist
+					if _, exists := fkVarMap[key]; !exists {
+						fkVarMap[key] = varName
+						_, _ = outputFile.WriteString("	" + varName+ " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					} else{
+						continue
+					}
+					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
 					for g := 0; g < len(fk_HierarchyX); g++ {
 						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
 							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+									key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+									if val, ok := fkVarMap[key]; ok {
+										_, _ = outputFile.WriteString(", " + val)
+									}		
+									// _, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 								}
 								if h == 0 {
 									break
@@ -331,15 +363,6 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 							}
 						}
 					}
-					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-					// for g := 0; g < len(tableX); g++ {
-					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-					// 		}
-					// 		break
-					// 	}
-					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
@@ -351,7 +374,11 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 		if fk_HierarchyX[g].TableName == tableX[i].Table_name {
 			for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 				for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-					_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+					key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+					if val, ok := fkVarMap[key]; ok {
+						_, _ = outputFile.WriteString(", " + val)
+					}		
+					// _, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 				}
 				if h == 0 {
 					break
@@ -359,14 +386,6 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 			}
 		}
 	}
-	// for g := 0; g < len(tableX); g++ {
-	// 	if tableX[g].Table_name == tableX[i].Table_name {
-	// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-	// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-	// 		}
-	// 		break
-	// 	}
-	// }
 	_, _ = outputFile.WriteString(")" + "\n")
 	_, _ = outputFile.WriteString("\n")
 	_, _ = outputFile.WriteString("	" + "}" + "\n")
@@ -376,7 +395,17 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 		if tableX[i].Table_Columns[g].ForeignFlag {
 			for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 				if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column) + "," + "\n")
+					fmt.Println(tableX[i].Table_Columns[g].Column_name)
+					FormatedFieldName := FormatFieldName(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
+					if tableX[i].Table_name == "bands" {
+						fmt.Println(FormatedFieldName)
+					}
+					key := tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName
+					if val, ok := fkVarMap[key]; ok {
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + val + "." + FormatedFieldName+","+"\n")
+					}						
+					// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + FormatedFieldName + "," + "\n")
+					// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[g].ColumnNameParams + ": " + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column) + "," + "\n")
 				}
 			}
 		}
@@ -416,7 +445,12 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 				}
 				for r := 0; r < len(tableX[i].ForeignKeys); r++ {
 					if tableX[i].ForeignKeys[r].FK_Column == tableX[i].Table_Columns[g].Column_name {
-						str = str + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[g].ColumnNameParams + " == " + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
+						key := tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName
+						if val, ok := fkVarMap[key]; ok {
+							FormatedFieldName := FormatFieldName(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
+							str = str + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[g].ColumnNameParams + " == " + val + "." + FormatedFieldName
+						}							
+						// str = str + tableX[i].OutputFileName + "." + tableX[i].Table_Columns[g].ColumnNameParams + " == " + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[r].FK_Related_SingularTableName + "." + strings.ToUpper(tableX[i].ForeignKeys[r].FK_Related_Table_Column)
 						pipeflag = true
 					}
 				}
@@ -432,17 +466,31 @@ func printTestFuncForReadList(tableX []dbschemareader.Table_Struct, i int, fk_Hi
 }
 
 func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
+	var fkVarMap = make(map[string]string)
 	_, _ = outputFile.WriteString("func TestUpdate" + tableX[i].FunctionSignature + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					varName := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName+strconv.Itoa(k) + strconv.Itoa(l) + strconv.Itoa(m)
+					key := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName
+					// Only store if key doesn't exist
+					if _, exists := fkVarMap[key]; !exists {
+						fkVarMap[key] = varName
+						_, _ = outputFile.WriteString("	" + varName+ " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					} else{
+						continue
+					}
+					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
 					for g := 0; g < len(fk_HierarchyX); g++ {
 						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
 							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+									key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+									if val, ok := fkVarMap[key]; ok {
+										_, _ = outputFile.WriteString(", " + val)
+									}		
+									// _, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 								}
 								if h == 0 {
 									break
@@ -461,7 +509,11 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 			if len(fk_HierarchyX[g].RelatedTablesLevels) > 0 {
 				for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 					for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-						_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+						key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+						if val, ok := fkVarMap[key]; ok {
+							_, _ = outputFile.WriteString(", " + val)
+						}		
+						// _, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 					}
 					_, _ = outputFile.WriteString(")" + "\n")
 					if h == 0 {
@@ -493,11 +545,17 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 		if tableX[i].Table_Columns[p].ForeignFlag {
 			for k := 0; k < len(tableX[i].ForeignKeys); k++ {
 				if tableX[i].ForeignKeys[k].FK_Column == tableX[i].Table_Columns[p].Column_name {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    	" + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+"\n"))
+					FormatedFieldName := FormatFieldName(tableX[i].ForeignKeys[k].FK_Related_Table_Column)
+					key := tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[k].FK_Related_SingularTableName
+					if val, ok := fkVarMap[key]; ok {
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    	" + val + "." + FormatedFieldName+","+"\n")
+					}						
+					// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    	" + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + FormatedFieldName+","+"\n")
+					// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    	" + tableX[i].Table_name+"_fk_"+tableX[i].ForeignKeys[k].FK_Related_SingularTableName + "." + strings.ToUpper((tableX[i].ForeignKeys[k].FK_Related_Table_Column)+","+"\n"))
 				}
 			}
 		} else {
-			if tableX[i].Table_Columns[p].ColumnType == "bigserial" {
+			if tableX[i].Table_Columns[p].ColumnType == "bigserial" || tableX[i].Table_Columns[p].ColumnType == "uuid" {
 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    " + tableX[i].OutputFileName + "1." + getByColumnName + "," + "\n")
 				continue
 			}
@@ -566,17 +624,31 @@ func printTestFuncForUpdate(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 }
 
 func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_HierarchyX []dbschemareader.FK_Hierarchy, outputFile *os.File) {
+	var fkVarMap = make(map[string]string)
 	_, _ = outputFile.WriteString("func TestDelete" + tableX[i].FunctionSignature + "(t *testing.T) {" + "\n")
 	for k := 0; k < len(fk_HierarchyX); k++ {
 		if fk_HierarchyX[k].TableName == tableX[i].Table_name {
 			for l := len(fk_HierarchyX[k].RelatedTablesLevels) - 1; l >= 0; l-- {
 				for m := 0; m < len(fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList); m++ {
-					_, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					varName := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName+strconv.Itoa(k) + strconv.Itoa(l) + strconv.Itoa(m)
+					key := fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName
+					// Only store if key doesn't exist
+					if _, exists := fkVarMap[key]; !exists {
+						fkVarMap[key] = varName
+						_, _ = outputFile.WriteString("	" + varName+ " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
+					} else{
+						continue
+					}
+					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].Hierarchy_TableName+"_fk_"+fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
 					for g := 0; g < len(fk_HierarchyX); g++ {
 						if fk_HierarchyX[g].TableName == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
 							for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 								for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-									_, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+									key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+									if val, ok := fkVarMap[key]; ok {
+										_, _ = outputFile.WriteString(", " + val)
+									}		
+									// _, _ = outputFile.WriteString(", " + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 								}
 								if h == 0 {
 									break
@@ -584,15 +656,6 @@ func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 							}
 						}
 					}
-					// _, _ = outputFile.WriteString("	" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_SingularTableName + " := createRandom" + fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName_Singular_Object + "(t")
-					// for g := 0; g < len(tableX); g++ {
-					// 	if tableX[g].Table_name == fk_HierarchyX[k].RelatedTablesLevels[l].RelatedTableList[m].FK_Related_TableName {
-					// 		for h := 0; h < len(tableX[g].ForeignKeys); h++ {
-					// 			_, _ = outputFile.WriteString(", " + tableX[g].ForeignKeys[h].FK_Related_SingularTableName)
-					// 		}
-					// 		break
-					// 	}
-					// }
 					_, _ = outputFile.WriteString(")" + "\n")
 				}
 			}
@@ -604,7 +667,11 @@ func printTestFuncForDelete(tableX []dbschemareader.Table_Struct, i int, fk_Hier
 			if len(fk_HierarchyX[g].RelatedTablesLevels) > 0 {
 				for h := 0; h < len(fk_HierarchyX[g].RelatedTablesLevels); h++ {
 					for z := 0; z < len(fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList); z++ {
-						_, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
+						key := fk_HierarchyX[g].RelatedTablesLevels[h].Hierarchy_TableName+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName
+						if val, ok := fkVarMap[key]; ok {
+							_, _ = outputFile.WriteString(", " + val)
+						}		
+						// _, _ = outputFile.WriteString(", " + tableX[i].Table_name+"_fk_"+fk_HierarchyX[g].RelatedTablesLevels[h].RelatedTableList[z].FK_Related_SingularTableName)
 					}
 					_, _ = outputFile.WriteString(")" + "\n")
 					if h == 0 {
