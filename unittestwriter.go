@@ -55,16 +55,9 @@ func FormatFieldName(input string) string {
 
 // generateValidValueForCheckConstraint generates a valid value based on check constraint
 func generateValidValueForCheckConstraint(tableName, columnName string, columnType string, checkConstraints []dbschemareader.CheckConstraint) string {
-	// fmt.Printf("DEBUG: Table=%s, Column=%s, Type=%s\n", tableName, columnName, columnType)
-	// if tableName == "resources" && columnName == "publication_year"{
-	// 	fmt.Printf("DEBUG: Table=%s, Column=%s, Type=%s\n", tableName, columnName, columnType)
-	// }
 	// Find check constraint for this column
 	for _, constraint := range checkConstraints {
 		if constraint.CheckConstraintColumnName == columnName {
-			// if tableName == "resources" && columnName == "publication_year"{
-			// 	fmt.Printf("DEBUG: Found constraint for %s: %s\n", columnName, constraint.CheckConstraintValue)
-			// }
 			result := generateValueFromConstraint(constraint.CheckConstraintValue, columnType)
 			// fmt.Printf("DEBUG: Generated value for %s: %s\n", columnName, result)  // ← This line should show the result
 			return result
@@ -81,6 +74,15 @@ func generateValueFromConstraint(constraintValue, columnType string) string {
 	constraintValue = strings.ToLower(strings.TrimSpace(constraintValue))
 	
 	// fmt.Printf("DEBUG: generateValueFromConstraint called with: '%s', columnType: '%s'\n", constraintValue, columnType)
+
+	// Handle REGEX constraints (various regex operators)
+	if strings.Contains(constraintValue, "~*") || 
+	   strings.Contains(constraintValue, "~") || 
+	   strings.Contains(constraintValue, "regexp") ||
+	   strings.Contains(constraintValue, "rlike") {
+		return handleRegexConstraint(originalValue, columnType)
+	}
+	
 	
 	// Handle complex constraints with OR conditions
 	if strings.Contains(constraintValue, " or ") {
@@ -100,14 +102,6 @@ func generateValueFromConstraint(constraintValue, columnType string) string {
 		return handleArithmeticConstraint(constraintValue, columnType)
 	}
 
-	// Handle REGEX constraints (various regex operators)
-	if strings.Contains(constraintValue, "~*") || 
-	   strings.Contains(constraintValue, "~") || 
-	   strings.Contains(constraintValue, "regexp") ||
-	   strings.Contains(constraintValue, "rlike") {
-		return handleRegexConstraint(originalValue, columnType)
-	}
-	
 	// Handle IN constraints with various formats
 	if strings.Contains(constraintValue, " in ") || 
 	   strings.Contains(constraintValue, " any ") {
@@ -116,6 +110,7 @@ func generateValueFromConstraint(constraintValue, columnType string) string {
 	
 	// Handle range constraints
 	if strings.Contains(constraintValue, ">=") || strings.Contains(constraintValue, ">") {
+		// fmt.Println(constraintValue, columnType)
 		return handleRangeConstraint(constraintValue, columnType, "min")
 	}
 	
@@ -394,7 +389,6 @@ func toCamelCase(s string) string {
 	return result
 }
 
-
 // Check if a column has an arithmetic constraint
 func checkForArithmeticConstraint(tableName, columnName string, checkConstraints []dbschemareader.CheckConstraint) bool {
     for _, constraint := range checkConstraints {
@@ -430,6 +424,7 @@ func getArithmeticConstraints(tableName string, checkConstraints []dbschemareade
 }
 
 // Generate arithmetic assignment after struct creation
+// Enhanced generateArithmeticAssignment to handle nullable types
 func generateArithmeticAssignment(constraint dbschemareader.CheckConstraint, columns []dbschemareader.Table_columns) string {
     constraintValue := strings.ToLower(strings.TrimSpace(constraint.CheckConstraintValue))
     
@@ -455,8 +450,18 @@ func generateArithmeticAssignment(constraint dbschemareader.CheckConstraint, col
             return ""
         }
         
-        // Generate the assignment
-        return fmt.Sprintf("arg.%s = %s", targetColumn.ColumnNameParams, expression)
+        // Generate the assignment based on column type and nullability
+        if targetColumn.Not_Null {
+            // NOT NULL columns
+            return fmt.Sprintf("arg.%s = %s", targetColumn.ColumnNameParams, expression)
+        } else {
+            // Nullable columns - need to update the Value field
+            if targetColumn.ColumnType == "real" {
+                return fmt.Sprintf("arg.%s.Float32 = %s", targetColumn.ColumnNameParams, expression)
+            } else if targetColumn.ColumnType == "bigint" {
+                return fmt.Sprintf("arg.%s.Int64 = %s", targetColumn.ColumnNameParams, expression)
+            }
+        }
     }
     
     return ""
@@ -998,6 +1003,8 @@ func handleRangeConstraint(constraintValue, columnType, rangeType string) string
 				return fmt.Sprintf("util.RandomReal(%.2f, %.2f)", maxVal-100, maxVal)
 			}
 		}
+	} else if columnType == "timestamptz" || columnType == "date" {
+		return "time.Now().UTC().Add(24 * time.Hour)"	
 	}
 	
 	return generateDefaultRandomValue(columnType)
@@ -1075,33 +1082,24 @@ func handleOrConstraint(constraintValue, columnType string) string {
 	conditions := strings.Split(constraintValue, " or ")	
 	for _, condition := range conditions {
 		condition = strings.TrimSpace(condition)
-		// if constraintValue == "publication_year is null or publication_year > 0"{
-		// 	fmt.Printf("DEBUG: handleOrConstraint inside for loop, condition: '%s'\n", condition)
-		// }
 
 		// Check if this condition allows NULL
 		if strings.Contains(condition, "is null") {
-
 			// For OR constraints with NULL option, we can choose to either:
 			// 1. Use NULL (for nullable columns)
 			// 2. Use a valid non-NULL value
 			// Let's choose a valid non-NULL value for test consistency
 			if strings.Contains(condition, "email") && columnType == "varchar" {
 				return "util.RandomEmail()"
+			} else if !strings.Contains(condition, "email") && columnType == "varchar" {
+				return ""
 			} else {
-				// if constraintValue == "publication_year is null or publication_year > 0"{
-				// 	fmt.Printf("DEBUG: handleOrConstraint inside else, condition: '%s'\n", condition)
-				// }
 				continue
 			}
 		}
 		
 		// Process the non-NULL condition
 		if strings.Contains(condition, ">=") || strings.Contains(condition, ">") {
-			// if constraintValue == "publication_year is null or publication_year > 0"{
-			// 	fmt.Printf("DEBUG: handleOrConstraint inside non-NULL condition, condition: '%s'\n", condition)
-			// }
-			//fmt.Println(handleRangeConstraint(condition, columnType, "min"))
 			return handleRangeConstraint(condition, columnType, "min")
 		}
 		
@@ -1222,7 +1220,7 @@ func generateDefaultRandomValue(columnType string) string {
 	case "timestamptz":
 		return "time.Now().UTC()"
 	case "date":
-		return "time.Date(2025, 5, 29, 0, 0, 0, 0, time.UTC)"  // Fixed date for consistency
+		return "time.Now().UTC()"  // Fixed date for consistency
 	case "uuid":
 		return "uuid.New()"
 	case "bool":
@@ -1344,13 +1342,6 @@ func CreateRandomFunctionWithConstraints(tableX []dbschemareader.Table_Struct, i
 			}
 		} else {
 			// Enhanced column value generation with check constraint support
-				// if tableX[i].Table_name == "orders" && tableX[i].Table_Columns[j].Column_name == "totalamount"{
-				// 	fmt.Println("tableX[i].Table_name", tableX[i].Table_name)
-				// 	fmt.Println("tableX[i].Table_Columns[j].Column_name)", tableX[i].Table_Columns[j].Column_name)
-				// 	fmt.Println("tableX[i].Table_Columns[j].ColumnType)", tableX[i].Table_Columns[j].ColumnType)
-				// 	fmt.Println("tableX[i].Table_Columns[j].Not_Null)", tableX[i].Table_Columns[j].Not_Null)
-				// 	time.Sleep(30 * time.Second)
-				// }
 			if tableX[i].Table_Columns[j].ColumnType == "varchar" && tableX[i].Table_Columns[j].Not_Null {
 				if tableX[i].Table_name == userTableName && tableX[i].Table_Columns[j].Column_name == tableX[i].UserTableSpecs.AuthColumnName{
 					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    "+tableX[i].UserTableSpecs.AuthColumnName+"," + "\n")
@@ -1373,37 +1364,59 @@ func CreateRandomFunctionWithConstraints(tableX []dbschemareader.Table_Struct, i
 				// For nullable varchar with constraints, wrap in pgtype
 				if strings.Contains(validValue, "util.") {
 					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Text{String: " + validValue + ", Valid: true}," + "\n")
+				} else if validValue == "" {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + `:    pgtype.Text{String: "" , Valid: false},` + "\n")
 				} else {
 					// Remove quotes from validValue since we're wrapping it in pgtype.Text
 					cleanValue := strings.Trim(validValue, `"`)
 					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Text{String: \"" + cleanValue + "\", Valid: true}," + "\n")
 				}
 			} else if tableX[i].Table_Columns[j].ColumnType == "bigint" && tableX[i].Table_Columns[j].Not_Null {
-				validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
-				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    " + validValue + "," + "\n")
-			} else if tableX[i].Table_Columns[j].ColumnType == "bigint" && !tableX[i].Table_Columns[j].Not_Null {
-				validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
-				
-				// Special handling for OR constraints with NULL option
-				constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
-				
-				if constraintAllowsNull {
-					if strings.Contains(validValue, "util.") {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-					} else {
-						if numVal, err := strconv.ParseInt(validValue, 10, 64); err == nil {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + strconv.FormatInt(numVal, 10) + ", Valid: true}," + "\n")
-						} else {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-						}
-					}
+				// Check if this column has an arithmetic constraint
+				hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
+				if hasArithmeticConstraint {
+					// For arithmetic constraints, we'll set this after struct creation
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    0, // Will be calculated after struct creation" + "\n")
 				} else {
-					if strings.Contains(validValue, "util.") {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-					} else {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-					}
+					// Normal constraint handling
+					validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    " + validValue + "," + "\n")
 				}
+				// validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+				// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    " + validValue + "," + "\n")
+			} else if tableX[i].Table_Columns[j].ColumnType == "bigint" && !tableX[i].Table_Columns[j].Not_Null {
+				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Valid: false}," + "\n")
+				// // Check if this column has an arithmetic constraint
+				// hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
+				
+				// if hasArithmeticConstraint {
+				// 	// For arithmetic constraints, we'll set this after struct creation
+				// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: 0, Valid: true}, // Will be calculated after struct creation" + "\n")
+				// } else {
+				// 	// Normal constraint handling
+				// 	validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+					
+				// 	// Special handling for OR constraints with NULL option
+				// 	constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
+					
+				// 	if constraintAllowsNull {
+				// 		if strings.Contains(validValue, "util.") {
+				// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+				// 		} else {
+				// 			if numVal, err := strconv.ParseInt(validValue, 10, 64); err == nil {
+				// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + strconv.FormatInt(numVal, 10) + ", Valid: true}," + "\n")
+				// 			} else {
+				// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+				// 			}
+				// 		}
+				// 	} else {
+				// 		if strings.Contains(validValue, "util.") {
+				// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+				// 		} else {
+				// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+				// 		}
+				// 	}
+				// }
 			} else if tableX[i].Table_Columns[j].ColumnType == "real" && tableX[i].Table_Columns[j].Not_Null {
 				// Check if this column has an arithmetic constraint
 				hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
@@ -1416,37 +1429,64 @@ func CreateRandomFunctionWithConstraints(tableX []dbschemareader.Table_Struct, i
 					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    " + validValue + "," + "\n")
 				}
 			} else if tableX[i].Table_Columns[j].ColumnType == "real" && !tableX[i].Table_Columns[j].Not_Null {
-				validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Valid: false}," + "\n")
+				// // Check if this column has an arithmetic constraint
+				// hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
 				
-				constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
-				
-				if constraintAllowsNull {
-					if strings.Contains(validValue, "util.") {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-					} else {
-						if numVal, err := strconv.ParseFloat(validValue, 32); err == nil {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + strconv.FormatFloat(numVal, 'f', 2, 32) + ", Valid: true}," + "\n")
-						} else {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-						}
-					}
-				} else {
-					if strings.Contains(validValue, "util.") {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-					} else {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-					}
-				}
+				// if hasArithmeticConstraint {
+				// 	// For arithmetic constraints, we'll set this after struct creation
+				// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: 0, Valid: true}, // Will be calculated after struct creation" + "\n")
+				// } else {
+				// 	// Normal constraint handling
+				// 	validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+					
+				// 	constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[j].Column_name, tableX[i].CheckConstraints)
+					
+				// 	if constraintAllowsNull {
+				// 		if strings.Contains(validValue, "util.") {
+				// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+				// 		} else {
+				// 			if numVal, err := strconv.ParseFloat(validValue, 32); err == nil {
+				// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + strconv.FormatFloat(numVal, 'f', 2, 32) + ", Valid: true}," + "\n")
+				// 			} else {
+				// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+				// 			}
+				// 		}
+				// 	} else {
+				// 		if strings.Contains(validValue, "util.") {
+				// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+				// 		} else {
+				// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+				// 		}
+				// 	}
+				// }
 			} else {
 				// For other column types, use existing logic
 				if tableX[i].Table_Columns[j].ColumnType == "timestamptz" && tableX[i].Table_Columns[j].Not_Null {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    time.Now().UTC()," + "\n")
+					validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+					if len(validValue) > 0 {
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    "+validValue+"," + "\n")
+					}else{
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    time.Now().UTC()," + "\n")
+					}
 				} else if tableX[i].Table_Columns[j].ColumnType == "timestamptz" && !tableX[i].Table_Columns[j].Not_Null {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}," + "\n")
+					// validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+					// if len(validValue) > 0 {
+					// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Timestamptz{Time: "+validValue+", Valid: true}," + "\n")
+					// }else{
+					// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}," + "\n")
+					// }
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Timestamptz{Valid: false}," + "\n")
 				} else if tableX[i].Table_Columns[j].ColumnType == "date" && tableX[i].Table_Columns[j].Not_Null {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    time.Date(2025, 5, 29, 0, 0, 0, 0, time.UTC)," + "\n")
+					validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[j].Column_name, tableX[i].Table_Columns[j].ColumnType, tableX[i].CheckConstraints)
+					if len(validValue) > 0 {
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    "+validValue+".Truncate(24 * time.Hour)"+"," + "\n")
+					}else{
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    time.Now().UTC().Truncate(24 * time.Hour)," + "\n")
+					}
+					//_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    time.Date(2025, 5, 29, 0, 0, 0, 0, time.UTC)," + "\n")
 				} else if tableX[i].Table_Columns[j].ColumnType == "date" && !tableX[i].Table_Columns[j].Not_Null {
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Date{Time: time.Date(2025, 5, 29, 0, 0, 0, 0, time.UTC), Valid: true}," + "\n")
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    pgtype.Date{Valid: false}," + "\n")
 				} else if tableX[i].Table_Columns[j].ColumnType == "uuid" && tableX[i].Table_Columns[j].Not_Null {
 					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[j].ColumnNameParams + ":    uuid.New()," + "\n")
 				} else if tableX[i].Table_Columns[j].ColumnType == "uuid" && !tableX[i].Table_Columns[j].Not_Null {
@@ -2210,6 +2250,10 @@ func printTestFuncForUpdateWithConstraints(tableX []dbschemareader.Table_Struct,
 					validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
 					if strings.Contains(validValue, "util.") {
 						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Text{String: " + validValue + ", Valid: true}," + "\n")
+					
+					} else if validValue == "" {
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + `:    pgtype.Text{String: "" , Valid: false},` + "\n")
+						
 					} else {
 						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Text{String: " + validValue + ", Valid: true}," + "\n")
 					}
@@ -2217,37 +2261,54 @@ func printTestFuncForUpdateWithConstraints(tableX []dbschemareader.Table_Struct,
 			} else if tableX[i].Table_Columns[p].ColumnType == "bigint" {
 				if tableX[i].Table_Columns[p].Not_Null {
 					// ENHANCED: Use constraint-aware value generation
-					validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
-					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": " + validValue + "," + "\n")
-				} else {
-					// ENHANCED: Use constraint-aware value generation for nullable bigint
-					validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
-					
-					constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
-					
-					if constraintAllowsNull {
-						if strings.Contains(validValue, "util.") {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-						} else {
-							if numVal, err := strconv.ParseInt(validValue, 10, 64); err == nil {
-								_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Int8{Int64: " + strconv.FormatInt(numVal, 10) + ", Valid: true}," + "\n")
-							} else {
-								_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-							}
-						}
+					// Check if this column has an arithmetic constraint
+					hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
+					if hasArithmeticConstraint {
+						// For arithmetic constraints, we'll set this after struct creation
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    0, // Will be calculated after struct creation" + "\n")
 					} else {
-						if strings.Contains(validValue, "util.") {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-						} else {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
-						}
+						// Normal constraint handling
+						validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": " + validValue + "," + "\n")
 					}
+				} else {
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Int8{Valid: false}," + "\n")
+	
+					// // Check if this column has an arithmetic constraint
+					// hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
+					
+					// if hasArithmeticConstraint {
+					// 	// For arithmetic constraints, we'll set this after struct creation
+					// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Int8{Int64: 0, Valid: true}, // Will be calculated after struct creation" + "\n")
+					// } else {
+					// 	// Normal constraint handling
+					// 	validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+						
+					// 	// Special handling for OR constraints with NULL option
+					// 	constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
+						
+					// 	if constraintAllowsNull {
+					// 		if strings.Contains(validValue, "util.") {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+					// 		} else {
+					// 			if numVal, err := strconv.ParseInt(validValue, 10, 64); err == nil {
+					// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Int8{Int64: " + strconv.FormatInt(numVal, 10) + ", Valid: true}," + "\n")
+					// 			} else {
+					// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+					// 			}
+					// 		}
+					// 	} else {
+					// 		if strings.Contains(validValue, "util.") {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+					// 		} else {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Int8{Int64: " + validValue + ", Valid: true}," + "\n")
+					// 		}
+					// 	}
+					// }
 				}
 			} else if tableX[i].Table_Columns[p].ColumnType == "real" {
 				if tableX[i].Table_Columns[p].Not_Null {
 					// ENHANCED: Use constraint-aware value generation
-					
-					
 					// Check if this column has an arithmetic constraint
 					hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
 					if hasArithmeticConstraint {
@@ -2258,50 +2319,101 @@ func printTestFuncForUpdateWithConstraints(tableX []dbschemareader.Table_Struct,
 						validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
 						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    " + validValue + "," + "\n")
 					}
-					
-					
-					
-					
-					
-					// validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
-					// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": " + validValue + "," + "\n")
 				} else {
-					// ENHANCED: Use constraint-aware value generation for nullable real
-					validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+					_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Float4{Valid: false}," + "\n")
+
+					// // Check if this column has an arithmetic constraint
+					// hasArithmeticConstraint := checkForArithmeticConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
 					
-					constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
+					// if hasArithmeticConstraint {
+					// 	// For arithmetic constraints, we'll set this after struct creation
+					// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Float4{Float32: 0, Valid: true}, // Will be calculated after struct creation" + "\n")
+					// } else {
+					// 	// Normal constraint handling
+					// 	validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+						
+					// 	constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
+						
+					// 	if constraintAllowsNull {
+					// 		if strings.Contains(validValue, "util.") {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 		} else {
+					// 			if numVal, err := strconv.ParseFloat(validValue, 32); err == nil {
+					// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Float4{Float32: " + strconv.FormatFloat(numVal, 'f', 2, 32) + ", Valid: true}," + "\n")
+					// 			} else {
+					// 				_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 			}
+					// 		}
+					// 	} else {
+					// 		if strings.Contains(validValue, "util.") {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 		} else {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 		}
+					// 	}
+					// }
+
+
 					
-					if constraintAllowsNull {
-						if strings.Contains(validValue, "util.") {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-						} else {
-							if numVal, err := strconv.ParseFloat(validValue, 32); err == nil {
-								_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + strconv.FormatFloat(numVal, 'f', 2, 32) + ", Valid: true}," + "\n")
-							} else {
-								_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-							}
-						}
-					} else {
-						if strings.Contains(validValue, "util.") {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-						} else {
-							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
-						}
-					}
+					// // ENHANCED: Use constraint-aware value generation for nullable real
+					// validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+					
+					// constraintAllowsNull := checkIfConstraintAllowsNull(tableX[i].Table_Columns[p].Column_name, tableX[i].CheckConstraints)
+					
+					// if constraintAllowsNull {
+					// 	if strings.Contains(validValue, "util.") {
+					// 		_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 	} else {
+					// 		if numVal, err := strconv.ParseFloat(validValue, 32); err == nil {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + strconv.FormatFloat(numVal, 'f', 2, 32) + ", Valid: true}," + "\n")
+					// 		} else {
+					// 			_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 		}
+					// 	}
+					// } else {
+					// 	if strings.Contains(validValue, "util.") {
+					// 		_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 	} else {
+					// 		_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Float4{Float32: " + validValue + ", Valid: true}," + "\n")
+					// 	}
+					// }
 				}
 			} else {
-				// For other column types, use existing logic (timestamptz, date, uuid, bool)
 				if tableX[i].Table_Columns[p].ColumnType == "timestamptz" {
 					if tableX[i].Table_Columns[p].Not_Null {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": time.Now().UTC()," + "\n")
+						validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+						if len(validValue) > 0 {
+							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    "+validValue+"," + "\n")
+						}else{
+							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    time.Now().UTC()," + "\n")
+						}
+						// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": time.Now().UTC()," + "\n")
 					} else {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}," + "\n")
+						// validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+						// if len(validValue) > 0 {
+						// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Timestamptz{Time: "+validValue+", Valid: true}," + "\n")
+						// }else{
+						// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}," + "\n")
+						// }
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Timestamptz{Valid: false}," + "\n")
 					}
 				} else if tableX[i].Table_Columns[p].ColumnType == "date" {
 					if tableX[i].Table_Columns[p].Not_Null {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": time.Date(2025, 5, 29, 0, 0, 0, 0, time.UTC)," + "\n")
+						validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+						if len(validValue) > 0 {
+							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    "+validValue+".Truncate(24 * time.Hour)"+"," + "\n")
+						}else{
+							_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    time.Now().UTC().Truncate(24 * time.Hour)," + "\n")
+						}
+						// _, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": time.Date(2025, 5, 29, 0, 0, 0, 0, time.UTC)," + "\n")
 					} else {
-						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ": pgtype.Date{Time: time.Date(2025, 5, 29, 0, 0, 0, 0, time.UTC), Valid: true}," + "\n")
+						// validValue := generateValidValueForCheckConstraint(tableX[i].Table_name, tableX[i].Table_Columns[p].Column_name, tableX[i].Table_Columns[p].ColumnType, tableX[i].CheckConstraints)
+						// if len(validValue) > 0 {
+						// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Date{Time: "+validValue+".Truncate(24 * time.Hour), Valid: true}," + "\n")					
+						// }else{
+						// 	_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Date{Time: time.Now().UTC().Truncate(24 * time.Hour), Valid: true}," + "\n")
+						// }
+						_, _ = outputFile.WriteString("		" + tableX[i].Table_Columns[p].ColumnNameParams + ":    pgtype.Date{Valid: false}," + "\n")
 					}
 				} else if tableX[i].Table_Columns[p].ColumnType == "uuid" {
 					if tableX[i].Table_Columns[p].Not_Null {
