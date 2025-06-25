@@ -1,5 +1,5 @@
 module github.com/naviscom/unittestwriter
 
-go 1.21.5
+go 1.23.3
 
-require github.com/naviscom/dbschemareader v1.0.1
+require github.com/naviscom/dbschemareader v1.1.0
